@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from database.user_auth import ( 
     SignupRequest,
     SigninRequest,
@@ -6,7 +6,12 @@ from database.user_auth import (
     ResetPasswordRequest,
     ProfileUpdateRequest
 )
-from utils.security import hash_password, verify_password
+from utils.security import (
+    hash_password,
+    verify_password,
+    create_access_token,
+    get_current_user
+)
 from services.user_id_generator import generate_user_id
 from db import db
 from datetime import datetime, timedelta
@@ -63,14 +68,16 @@ async def signin(data: SigninRequest):
         ]
     })
 
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    # Security: Generic error message to prevent user enumeration
+    if not user or not verify_password(data.password, user["password"]):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    if not verify_password(data.password, user["password"]):
-        raise HTTPException(status_code=401, detail="Invalid password")
+    access_token = create_access_token(data={"sub": user["_id"]})
 
     return {
         "msg": "login success",
+        "access_token": access_token,
+        "token_type": "bearer",
         "user_id": user["_id"]
     }
 
@@ -81,8 +88,9 @@ async def forgot_password(data: ForgotPasswordRequest):
 
     user = await db.users.find_one({"email": data.email})
 
+    # Security: Generic response even if user not found to prevent enumeration
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        return {"msg": "If an account exists with this email, an OTP has been sent."}
 
     otp = str(random.randint(100000, 999999))
 
@@ -97,8 +105,9 @@ async def forgot_password(data: ForgotPasswordRequest):
         upsert=True
     )
 
-    # ⚠️ Do NOT return OTP in production
-    return {"msg": "OTP sent", "otp": otp}
+    # Security: Log OTP instead of returning it
+    print(f"DEBUG: OTP for {data.email} is {otp}")
+    return {"msg": "If an account exists with this email, an OTP has been sent."}
 
 
 # ✅ RESET PASSWORD
@@ -124,7 +133,11 @@ async def reset_password(data: ResetPasswordRequest):
 
 # ✅ PROFILE UPDATE
 @router.post("/profile/{user_id}")
-async def update_profile(user_id: str, data: ProfileUpdateRequest):
+async def update_profile(user_id: str, data: ProfileUpdateRequest, current_user_id: str = Depends(get_current_user)):
+
+    # Authorization: Ensure user is updating their own profile
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to update this profile")
 
     if not all([data.name, data.phone, data.email, data.address]):
         raise HTTPException(status_code=400, detail="All fields required")
