@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from db import db
 from database.cart import AddToCartBulkRequest
+from utils.security import get_current_user
 
 router = APIRouter(prefix="/cart", tags=["cart"])
 
@@ -31,9 +32,12 @@ async def calculate_summary(cart):
 
 
 @router.post("/bulk-add")
-async def bulk_add_to_cart(data: AddToCartBulkRequest):
+async def bulk_add_to_cart(data: AddToCartBulkRequest, current_user_id: str = Depends(get_current_user)):
 
     user_id = data.user_id
+
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
     product_ids = data.product_ids
 
     if not product_ids:
@@ -94,7 +98,10 @@ async def bulk_add_to_cart(data: AddToCartBulkRequest):
     return {"msg": "bulk items added to cart"}
 
 @router.get("/{user_id}")
-async def get_cart(user_id: str):
+async def get_cart(user_id: str, current_user_id: str = Depends(get_current_user)):
+
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
 
     cart = await db.carts.find_one({"user_id": user_id})
 
@@ -110,7 +117,10 @@ async def get_cart(user_id: str):
 
 
 @router.put("/update")
-async def update_quantity(user_id: str, product_id: str, quantity: int):
+async def update_quantity(user_id: str, product_id: str, quantity: int, current_user_id: str = Depends(get_current_user)):
+
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
 
     if quantity < 1:
         raise HTTPException(status_code=400, detail="Invalid quantity")
@@ -132,7 +142,10 @@ async def update_quantity(user_id: str, product_id: str, quantity: int):
 
 
 @router.delete("/remove")
-async def remove_item(user_id: str, product_id: str):
+async def remove_item(user_id: str, product_id: str, current_user_id: str = Depends(get_current_user)):
+
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
 
     await db.carts.update_one(
         {"user_id": user_id},
@@ -143,7 +156,10 @@ async def remove_item(user_id: str, product_id: str):
 
 
 @router.delete("/clear/{user_id}")
-async def clear_cart(user_id: str):
+async def clear_cart(user_id: str, current_user_id: str = Depends(get_current_user)):
+
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
 
     await db.carts.update_one(
         {"user_id": user_id},
@@ -154,7 +170,10 @@ async def clear_cart(user_id: str):
 
 
 @router.post("/apply-coupon")
-async def apply_coupon(user_id: str, code: str):
+async def apply_coupon(user_id: str, code: str, current_user_id: str = Depends(get_current_user)):
+
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
 
     coupon = await db.coupons.find_one({"code": code})
 
@@ -178,7 +197,10 @@ async def apply_coupon(user_id: str, code: str):
 
 
 @router.get("/summary/{user_id}")
-async def get_summary(user_id: str):
+async def get_summary(user_id: str, current_user_id: str = Depends(get_current_user)):
+
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
 
     cart = await db.carts.find_one({"user_id": user_id})
 
@@ -193,7 +215,10 @@ async def get_summary(user_id: str):
     return await calculate_summary(cart)
 
 @router.post("/checkout")
-async def checkout(user_id: str):
+async def checkout(user_id: str, current_user_id: str = Depends(get_current_user)):
+
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
 
     cart = await db.carts.find_one({"user_id": user_id})
 
