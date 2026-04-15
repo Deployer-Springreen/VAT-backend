@@ -2,7 +2,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 from pydantic import Field
-from .base import AppBaseModel, PyObjectId
+from .base import AppBaseModel
 
 
 class PaymentCreate(AppBaseModel):
@@ -20,7 +20,7 @@ class PaymentCreate(AppBaseModel):
 
     Fields:
     -------
-    order_id : PyObjectId
+    order_id : str
         ID of the order associated with the payment.
 
     amount_paid : float
@@ -46,7 +46,7 @@ class PaymentCreate(AppBaseModel):
     - Negative or zero amount_paid → should be validated in service layer.
     """
 
-    order_id: PyObjectId
+    order_id: str
     amount_paid: float = Field(gt=0)
     payment_method: Optional[str] = None
     transaction_id: Optional[str] = None
@@ -67,10 +67,10 @@ class PaymentOut(AppBaseModel):
 
     Fields:
     -------
-    id : Optional[PyObjectId]
+    id : Optional[str]
         MongoDB document ID (mapped from '_id').
 
-    order_id : PyObjectId
+    order_id : str
         ID of the associated order.
 
     amount_paid : float
@@ -103,8 +103,8 @@ class PaymentOut(AppBaseModel):
     - Incorrect timestamps may occur if system time is misconfigured.
     """
 
-    id: Optional[PyObjectId] = Field(default=None, alias="_id")
-    order_id: PyObjectId
+    id: Optional[str] = Field(default=None, alias="_id")
+    order_id: str
     amount_paid: float
     payment_method: Optional[str] = None
     payment_status: str = "SUCCESS"

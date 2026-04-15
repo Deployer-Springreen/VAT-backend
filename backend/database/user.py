@@ -2,7 +2,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List, Optional
 from pydantic import Field, EmailStr
-from .base import AppBaseModel, PyObjectId
+from .base import AppBaseModel
 from .address import AddressEmbedded
 
 
@@ -21,7 +21,7 @@ class UserOut(AppBaseModel):
     """
     UserOut Schema
     """
-    id:              Optional[PyObjectId] = Field(default=None, alias="_id")
+    id:              Optional[str] = Field(default=None, alias="_id")
     users_name:      str
     email:           EmailStr
     phone_no:        Optional[str] = None

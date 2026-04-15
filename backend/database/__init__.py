@@ -40,7 +40,7 @@ Only the names listed here will be exported when importing the module.
 
 Structure:
 ----------
-- Base utilities (AppBaseModel, PyObjectId, responses)
+- Base utilities (AppBaseModel, str, responses)
 - Embedded models (Address, Variants, etc.)
 - Schema models (User, Product, Cart, Order, etc.)
 - Request/Response DTOs
@@ -59,7 +59,7 @@ Always update this file when:
 - Removing unused components
 """
 
-from .base import AppBaseModel, PyObjectId, SuccessResponse, ErrorResponse
+from .base import AppBaseModel, SuccessResponse, ErrorResponse
 
 from .address import AddressEmbedded
 
@@ -92,7 +92,7 @@ from .order_fullfilement import ReturnCreate, ReturnOut, ReturnStatusUpdate
 
 __all__ = [
     # base
-    "AppBaseModel", "PyObjectId", "SuccessResponse", "ErrorResponse",
+    "AppBaseModel", "str", "SuccessResponse", "ErrorResponse",
     # address
     "AddressEmbedded",
     # user

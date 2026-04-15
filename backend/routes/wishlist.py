@@ -7,8 +7,13 @@ from services.wishlist_service import move_item_to_cart, bulk_add_wishlist
 
 router = APIRouter(prefix="/wishlist", tags=["wishlist"])
 
+
+# ✅ BULK ADD
 @router.post("/bulk-add", response_model=SuccessResponse[dict])
-async def bulk_add_to_wishlist(data: AddToWishlistBulkRequest, current_user_id: str = Depends(get_current_user)):
+async def bulk_add_to_wishlist(
+    data: AddToWishlistBulkRequest,
+    current_user_id: str = Depends(get_current_user)
+):
     if data.user_id != current_user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
 
@@ -16,8 +21,12 @@ async def bulk_add_to_wishlist(data: AddToWishlistBulkRequest, current_user_id: 
     return SuccessResponse(message=msg)
 
 
+# ✅ GET WISHLIST
 @router.get("/{user_id}", response_model=SuccessResponse[dict])
-async def get_wishlist(user_id: str, current_user_id: str = Depends(get_current_user)):
+async def get_wishlist(
+    user_id: str,
+    current_user_id: str = Depends(get_current_user)
+):
     if user_id != current_user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
 
@@ -26,28 +35,41 @@ async def get_wishlist(user_id: str, current_user_id: str = Depends(get_current_
     if not wishlist:
         return SuccessResponse(data={"items": []})
 
+    # ✅ normalize output
     wishlist["_id"] = str(wishlist["_id"])
-    for item in wishlist["items"]:
+    for item in wishlist.get("items", []):
         item["product_id"] = str(item["product_id"])
 
     return SuccessResponse(data=wishlist)
 
 
-@router.delete("/remove", response_model=SuccessResponse[dict])
-async def remove_item(user_id: str, product_id: str, current_user_id: str = Depends(get_current_user)):
+# ✅ REMOVE ITEM
+@router.delete("/remove/{user_id}/{product_id}", response_model=SuccessResponse[dict])
+async def remove_item(
+    user_id: str,
+    product_id: str,
+    current_user_id: str = Depends(get_current_user)
+):
     if user_id != current_user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    await db.wishlist.update_one(
+    result = await db.wishlist.update_one(
         {"user_id": user_id},
         {"$pull": {"items": {"product_id": product_id}}}
     )
 
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Item not found")
+
     return SuccessResponse(message="item removed")
 
 
+# ✅ CLEAR WISHLIST
 @router.delete("/clear/{user_id}", response_model=SuccessResponse[dict])
-async def clear_wishlist(user_id: str, current_user_id: str = Depends(get_current_user)):
+async def clear_wishlist(
+    user_id: str,
+    current_user_id: str = Depends(get_current_user)
+):
     if user_id != current_user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
 
@@ -59,8 +81,18 @@ async def clear_wishlist(user_id: str, current_user_id: str = Depends(get_curren
     return SuccessResponse(message="wishlist cleared")
 
 
+# ✅ MOVE TO CART (FIXED BODY INPUT)
 @router.post("/move-to-cart", response_model=SuccessResponse[dict])
-async def move_to_cart(user_id: str, product_id: str, current_user_id: str = Depends(get_current_user)):
+async def move_to_cart(
+    data: dict,
+    current_user_id: str = Depends(get_current_user)
+):
+    user_id = data.get("user_id")
+    product_id = data.get("product_id")
+
+    if not user_id or not product_id:
+        raise HTTPException(status_code=400, detail="Missing fields")
+
     if user_id != current_user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List, Optional,Dict, Any
 from pydantic import Field, field_validator
-from .base import AppBaseModel, PyObjectId
+from .base import AppBaseModel
 from .address import AddressEmbedded
 
 
@@ -24,7 +24,7 @@ class OrderItemEmbedded(AppBaseModel):
 
     Fields:
     -------
-    product_id : PyObjectId
+    product_id : str
         Reference to the original product.
 
     product_name : Optional[str]
@@ -51,7 +51,7 @@ class OrderItemEmbedded(AppBaseModel):
     - product_name may become outdated intentionally (snapshot behavior).
     """
 
-    product_id: PyObjectId
+    product_id: str
     product_name: Optional[str] = None
     product_variants: Dict[str, Any] = Field(default_factory=dict)
     order_quantity: int= Field( ge=1)
@@ -73,7 +73,7 @@ class OrderCreate(AppBaseModel):
 
     Fields:
     -------
-    user_id : PyObjectId
+    user_id : str
         ID of the user placing the order.
 
     address : AddressEmbedded
@@ -91,7 +91,7 @@ class OrderCreate(AppBaseModel):
     - Missing or incomplete address → validation error.
     """
 
-    user_id: PyObjectId
+    user_id: str
     address: AddressEmbedded
 
 
@@ -110,10 +110,10 @@ class OrderOut(AppBaseModel):
 
     Fields:
     -------
-    id : Optional[PyObjectId]
+    id : Optional[str]
         MongoDB document ID (mapped from '_id').
 
-    user_id : PyObjectId
+    user_id : str
         ID of the user who placed the order.
 
     items : List[OrderItemEmbedded]
@@ -144,8 +144,8 @@ class OrderOut(AppBaseModel):
     - id may be None if not persisted.
     """
 
-    id: Optional[PyObjectId] = Field(default=None, alias="_id")
-    user_id: PyObjectId
+    id: Optional[str] = Field(default=None, alias="_id")
+    user_id: str
     
     items: List[OrderItemEmbedded] = Field(default_factory=list)
 

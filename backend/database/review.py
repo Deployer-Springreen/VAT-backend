@@ -2,7 +2,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional,Dict, Any
 from pydantic import Field, field_validator
-from .base import AppBaseModel, PyObjectId
+from .base import AppBaseModel
 
 
 class ReviewCreate(AppBaseModel):
@@ -20,10 +20,10 @@ class ReviewCreate(AppBaseModel):
 
     Fields:
     -------
-    user_id : PyObjectId
+    user_id : str
         ID of the user submitting the review.
 
-    product_id : PyObjectId
+    product_id : str
         ID of the product being reviewed.
 
     rating : float
@@ -54,8 +54,8 @@ class ReviewCreate(AppBaseModel):
     - Duplicate reviews by same user for same product should be prevented externally.
     """
 
-    user_id: PyObjectId
-    product_id: PyObjectId
+    user_id: str
+    product_id: str
     rating: float = Field(..., ge=1.0, le=5.0)
     comment: Optional[str] = None
     order_item: Dict[str, Any] = Field(default_factory=dict)
@@ -77,13 +77,13 @@ class ReviewOut(AppBaseModel):
 
     Fields:
     -------
-    id : Optional[PyObjectId]
+    id : Optional[str]
         MongoDB document ID (mapped from '_id').
 
-    user_id : PyObjectId
+    user_id : str
         ID of the user who submitted the review.
 
-    product_id : PyObjectId
+    product_id : str
         ID of the reviewed product.
 
     order_item : dict
@@ -114,9 +114,9 @@ class ReviewOut(AppBaseModel):
     - verified_purchase must be correctly set to avoid misleading users.
     """
 
-    id: Optional[PyObjectId] = Field(default=None, alias="_id")
-    user_id: PyObjectId
-    product_id: PyObjectId
+    id: Optional[str] = Field(default=None, alias="_id")
+    user_id: str
+    product_id: str
     order_item: dict = {}
     verified_purchase: bool = False
     rating: float

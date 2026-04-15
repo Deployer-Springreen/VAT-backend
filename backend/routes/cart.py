@@ -9,42 +9,47 @@ router = APIRouter(prefix="/cart", tags=["cart"])
 
 
 @router.post("/bulk-add", response_model=SuccessResponse[dict])
-async def bulk_add_to_cart(data: AddToCartBulkRequest, current_user_id: str = Depends(get_current_user)):
-    if data.user_id != current_user_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
-
-    msg = await bulk_add_items(data.user_id, data.product_ids)
+async def bulk_add_to_cart(
+    data: AddToCartBulkRequest,
+    current_user_id: str = Depends(get_current_user)
+):
+    # ✅ use user_id from token
+    msg = await bulk_add_items(current_user_id, data.product_ids)
     return SuccessResponse(message=msg)
 
 
-@router.get("/{user_id}", response_model=SuccessResponse[dict])
-async def get_cart(user_id: str, current_user_id: str = Depends(get_current_user)):
-    if user_id != current_user_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+@router.get("/", response_model=SuccessResponse[dict])
+async def get_cart(current_user_id: str = Depends(get_current_user)):
 
-    cart = await db.carts.find_one({"user_id": user_id})
+    cart = await db.carts.find_one({"user_id": current_user_id})
 
     if not cart:
         return SuccessResponse(data={"items": []})
 
     cart["_id"] = str(cart["_id"])
-    for item in cart["items"]:
-        item["product_id"] = str(item["product_id"])
-
     return SuccessResponse(data=cart)
 
 
-@router.put("/update", response_model=SuccessResponse[dict])
-async def update_quantity(user_id: str, product_id: str, quantity: int, current_user_id: str = Depends(get_current_user)):
-    if user_id != current_user_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+@router.put("/update/{product_id}", response_model=SuccessResponse[dict])
+async def update_quantity(
+    product_id: str,
+    quantity: int,
+    current_user_id: str = Depends(get_current_user)
+):
 
-    if quantity < 1:
+    if quantity == 0:
+        await db.carts.update_one(
+            {"user_id": current_user_id},
+            {"$pull": {"items": {"product_id": product_id}}}
+        )
+        return SuccessResponse(message="item removed")
+
+    if quantity < 0:
         raise HTTPException(status_code=400, detail="Invalid quantity")
 
     result = await db.carts.update_one(
         {
-            "user_id": user_id,
+            "user_id": current_user_id,
             "items.product_id": product_id
         },
         {
@@ -58,79 +63,24 @@ async def update_quantity(user_id: str, product_id: str, quantity: int, current_
     return SuccessResponse(message="quantity updated")
 
 
-@router.delete("/remove", response_model=SuccessResponse[dict])
-async def remove_item(user_id: str, product_id: str, current_user_id: str = Depends(get_current_user)):
-    if user_id != current_user_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+@router.delete("/remove/{product_id}", response_model=SuccessResponse[dict])
+async def remove_item(product_id: str, current_user_id: str = Depends(get_current_user)):
 
     await db.carts.update_one(
-        {"user_id": user_id},
+        {"user_id": current_user_id},
         {"$pull": {"items": {"product_id": product_id}}}
     )
 
     return SuccessResponse(message="item removed")
 
 
-@router.delete("/clear/{user_id}", response_model=SuccessResponse[dict])
-async def clear_cart(user_id: str, current_user_id: str = Depends(get_current_user)):
-    if user_id != current_user_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
-
-    await db.carts.update_one(
-        {"user_id": user_id},
-        {"$set": {"items": [], "coupon": None}}
-    )
-
-    return SuccessResponse(message="cart cleared")
-
-
-@router.post("/apply-coupon", response_model=SuccessResponse[dict])
-async def apply_coupon(user_id: str, code: str, current_user_id: str = Depends(get_current_user)):
-    if user_id != current_user_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
-
-    coupon = await db.coupons.find_one({"code": code})
-    if not coupon:
-        raise HTTPException(status_code=404, detail="Invalid coupon")
-
-    await db.carts.update_one(
-        {"user_id": user_id},
-        {
-            "$set": {
-                "coupon": {
-                    "code": coupon["code"],
-                    "discount": coupon.get("discount", 0),
-                    "type": coupon.get("type", "flat")
-                }
-            }
-        }
-    )
-
-    return SuccessResponse(message="coupon applied")
-
-
-@router.get("/summary/{user_id}", response_model=SuccessResponse[dict])
-async def get_summary(user_id: str, current_user_id: str = Depends(get_current_user)):
-    if user_id != current_user_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
-
-    cart = await db.carts.find_one({"user_id": user_id})
-    if not cart or not cart.get("items"):
-        return SuccessResponse(data={
-            "subtotal": 0,
-            "discount": 0,
-            "shipping": 0,
-            "total": 0
-        })
-
-    summary = await calculate_summary(cart)
-    return SuccessResponse(data=summary)
-
-
 @router.post("/checkout", response_model=SuccessResponse[dict])
-async def checkout(user_id: str, current_user_id: str = Depends(get_current_user)):
-    if user_id != current_user_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+async def checkout(current_user_id: str = Depends(get_current_user)):
 
-    order_id = await checkout_cart(user_id)
+    cart = await db.carts.find_one({"user_id": current_user_id})
+
+    if not cart or not cart.get("items"):
+        raise HTTPException(status_code=400, detail="Cart is empty")
+
+    order_id = await checkout_cart(current_user_id)
     return SuccessResponse(data={"order_id": order_id})

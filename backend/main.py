@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from routes import user_auth,cart,wishlist
+from routes import user_auth,cart,wishlist,product
 from db import db
 
 app = FastAPI(
@@ -16,6 +16,7 @@ async def root():
 app.include_router(user_auth.router)
 app.include_router(cart.router)
 app.include_router(wishlist.router)
+app.include_router(product.router)
 
 @app.on_event("startup")
 async def create_indexes():

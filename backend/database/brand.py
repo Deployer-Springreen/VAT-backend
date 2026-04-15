@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Optional
 from pydantic import Field
-from .base import AppBaseModel, PyObjectId
+from .base import AppBaseModel
 
 
 class BrandCreate(AppBaseModel):
@@ -54,7 +54,7 @@ class BrandOut(AppBaseModel):
 
     Fields:
     -------
-    id : Optional[PyObjectId]
+    id : Optional[str]
         MongoDB document ID (mapped from '_id').
 
     brand_name : str
@@ -77,5 +77,5 @@ class BrandOut(AppBaseModel):
         brand_name="Nike"
     )
     """
-    id:         Optional[PyObjectId] = Field(default=None, alias="_id")
+    id:         Optional[str] = Field(default=None, alias="_id")
     brand_name: str

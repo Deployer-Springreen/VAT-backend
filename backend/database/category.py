@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Optional
 from pydantic import Field
-from .base import AppBaseModel, PyObjectId
+from .base import AppBaseModel
 
 
 class CategoryCreate(AppBaseModel):
@@ -55,7 +55,7 @@ class CategoryOut(AppBaseModel):
 
     Fields:
     -------
-    id : Optional[PyObjectId]
+    id : Optional[str]
         MongoDB document ID (mapped from '_id').
 
     category_name : str
@@ -77,5 +77,5 @@ class CategoryOut(AppBaseModel):
     category_out = CategoryOut(category_name="Electronics")
     """
 
-    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    id: Optional[str] = Field(default=None, alias="_id")
     category_name: str

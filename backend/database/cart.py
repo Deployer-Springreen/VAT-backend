@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import List, Optional,Dict,Any
 from pydantic import Field,BaseModel
-from .base import AppBaseModel, PyObjectId
+from .base import AppBaseModel
 
 
 class CartItemEmbedded(AppBaseModel):
@@ -20,7 +20,7 @@ class CartItemEmbedded(AppBaseModel):
 
     Fields:
     -------
-    product_id : PyObjectId
+    product_id : str
         Reference to the product.
 
     product_name : Optional[str]
@@ -47,7 +47,7 @@ class CartItemEmbedded(AppBaseModel):
     - product_name may become outdated if product changes later.
     """
 
-    product_id: PyObjectId
+    product_id: str
     product_name: Optional[str] = None
     product_variants: Dict[str, Any] = Field(default_factory=dict)
     cart_quantity: int = Field(default=1, ge=1)
@@ -67,10 +67,10 @@ class CartOut(AppBaseModel):
 
     Fields:
     -------
-    id : Optional[PyObjectId]
+    id : Optional[str]
         MongoDB document ID (mapped from '_id').
 
-    user_id : PyObjectId
+    user_id : str
         Reference to the user who owns the cart.
 
     items : List[CartItemEmbedded]
@@ -88,8 +88,8 @@ class CartOut(AppBaseModel):
     - Invalid ObjectId may cause serialization issues.
     """
 
-    id: Optional[PyObjectId] = Field(default=None, alias="_id")
-    user_id: PyObjectId
+    id: Optional[str] = Field(default=None, alias="_id")
+    user_id: str
     items: List[CartItemEmbedded] = Field(default_factory=list)
 
 
@@ -113,7 +113,7 @@ class AddToCartRequest(AppBaseModel):
 
     Fields:
     -------
-    product_id : PyObjectId
+    product_id : str
         ID of the product to add.
 
     variant_data : dict
@@ -134,7 +134,7 @@ class AddToCartRequest(AppBaseModel):
     - variant_data may be empty → may cause issues if variant is required.
     """
 
-    product_id: PyObjectId
+    product_id: str
     variant_data: Dict[str, Any] = Field(default_factory=dict)
     quantity: int = Field(default=1, ge=1)
 
@@ -152,7 +152,7 @@ class RemoveFromCartRequest(AppBaseModel):
 
     Fields:
     -------
-    product_id : PyObjectId
+    product_id : str
         ID of the product to remove from the cart.
 
     Behavior:
@@ -166,12 +166,12 @@ class RemoveFromCartRequest(AppBaseModel):
     - Does not handle variant-specific removal (may remove multiple items).
     """
 
-    product_id: PyObjectId
+    product_id: str
 
 class UpdateCartQuantityRequest(AppBaseModel):
     """
     Update quantity of cart item
     """
 
-    product_id: PyObjectId
+    product_id: str
     quantity: int = Field(ge=1)

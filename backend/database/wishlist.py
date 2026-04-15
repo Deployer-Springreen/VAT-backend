@@ -2,7 +2,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional,Dict, Any,List
 from pydantic import Field,BaseModel
-from .base import AppBaseModel, PyObjectId
+from .base import AppBaseModel
 from .product import ProductOut
 
 
@@ -21,10 +21,10 @@ class WishlistCreate(AppBaseModel):
 
     Fields:
     -------
-    user_id : PyObjectId
+    user_id : str
         ID of the user adding the product.
 
-    product_id : PyObjectId
+    product_id : str
         ID of the product to be added to wishlist.
 
     product_variant : dict
@@ -43,8 +43,8 @@ class WishlistCreate(AppBaseModel):
     - Invalid user_id or product_id must be handled in service layer.
     """
 
-    user_id: PyObjectId
-    product_id: PyObjectId
+    user_id: str
+    product_id: str
     product_variant: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -67,10 +67,10 @@ class WishlistOut(AppBaseModel):
 
     Fields:
     -------
-    id : Optional[PyObjectId]
+    id : Optional[str]
         MongoDB document ID (mapped from '_id').
 
-    user_id : PyObjectId
+    user_id : str
         ID of the user who owns the wishlist entry.
 
     product : Optional[ProductOut]
@@ -95,8 +95,8 @@ class WishlistOut(AppBaseModel):
     - id may be None if not persisted.
     """
 
-    id: Optional[PyObjectId] = Field(default=None, alias="_id")
-    user_id: PyObjectId
+    id: Optional[str] = Field(default=None, alias="_id")
+    user_id: str
     product: Optional[ProductOut] = None
     product_variant: dict = {}
     wishlist_created: datetime = Field(default_factory=datetime.utcnow)

@@ -2,7 +2,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Dict, Any,Optional
 from pydantic import Field, field_validator
-from .base import AppBaseModel, PyObjectId
+from .base import AppBaseModel
 
 
 class ReturnCreate(AppBaseModel):
@@ -20,10 +20,10 @@ class ReturnCreate(AppBaseModel):
 
     Fields:
     -------
-    order_id : PyObjectId
+    order_id : str
         ID of the order associated with the return.
 
-    user_id : PyObjectId
+    user_id : str
         ID of the user requesting the return.
 
     order_item : dict
@@ -54,8 +54,8 @@ class ReturnCreate(AppBaseModel):
     """
 
     
-    order_id: PyObjectId
-    user_id: PyObjectId
+    order_id: str
+    user_id: str
     order_item: Dict[str, Any] = Field(default_factory=dict)
     return_quantity: int = Field(default=1, ge=1)
     return_reason: Optional[str] = None
@@ -77,13 +77,13 @@ class ReturnOut(AppBaseModel):
 
     Fields:
     -------
-    id : Optional[PyObjectId]
+    id : Optional[str]
         MongoDB document ID (mapped from '_id').
 
-    order_id : PyObjectId
+    order_id : str
         ID of the associated order.
 
-    user_id : PyObjectId
+    user_id : str
         ID of the user.
 
     order_item : dict
@@ -119,9 +119,9 @@ class ReturnOut(AppBaseModel):
     - refund_amount may be None if not calculated yet.
     """
 
-    id: Optional[PyObjectId] = Field(default=None, alias="_id")
-    order_id: PyObjectId
-    user_id: PyObjectId
+    id: Optional[str] = Field(default=None, alias="_id")
+    order_id: str
+    user_id: str
     order_item: dict = {}
     return_quantity: int = 1
     return_reason: Optional[str] = None

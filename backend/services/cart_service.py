@@ -27,8 +27,9 @@ async def bulk_add_items(user_id: str, product_ids: list):
     if not product_ids:
         raise HTTPException(status_code=400, detail="No products provided")
 
+    # ✅ FIXED: use _id instead of product_id
     products = await db.products.find({
-        "product_id": {"$in": product_ids}
+        "_id": {"$in": product_ids}
     }).to_list(length=len(product_ids))
 
     if not products:
@@ -36,26 +37,32 @@ async def bulk_add_items(user_id: str, product_ids: list):
 
     cart = await db.carts.find_one({"user_id": user_id})
 
+    # ✅ CREATE NEW CART
     if not cart:
         items = [
             {
-                "product_id": p["product_id"],
+                "product_id": p["_id"],   # ✅ FIXED
                 "product_name": p.get("product_name"),
                 "price": p.get("price", 0),
                 "quantity": 1
             }
             for p in products
         ]
+
         await db.carts.insert_one({
             "user_id": user_id,
             "items": items,
             "coupon": None
         })
+
         return "cart created with items"
 
+    # ✅ MERGE EXISTING ITEMS
     existing_items = {item["product_id"]: item for item in cart["items"]}
+
     for p in products:
-        pid = p["product_id"]
+        pid = p["_id"]   # ✅ FIXED
+
         if pid in existing_items:
             existing_items[pid]["quantity"] += 1
         else:
@@ -70,6 +77,7 @@ async def bulk_add_items(user_id: str, product_ids: list):
         {"user_id": user_id},
         {"$set": {"items": list(existing_items.values())}}
     )
+
     return "bulk items added to cart"
 
 async def checkout_cart(user_id: str):

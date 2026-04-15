@@ -2,7 +2,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List, Optional
 from pydantic import Field, field_validator
-from .base import AppBaseModel, PyObjectId
+from .base import AppBaseModel
 from .category import CategoryOut
 from .brand import BrandOut
 
@@ -115,10 +115,10 @@ class ProductCreate(AppBaseModel):
     price : Optional[float]
         Base price of the product.
 
-    category_id : Optional[PyObjectId]
+    category_id : Optional[str]
         Reference to category.
 
-    brand_id : Optional[PyObjectId]
+    brand_id : Optional[str]
         Reference to brand.
 
     variants : List[VariantEmbedded]
@@ -143,8 +143,8 @@ class ProductCreate(AppBaseModel):
     product_name: str
     description: Optional[str] = None
     price: Optional[float] = None
-    category_id: Optional[PyObjectId] = None
-    brand_id: Optional[PyObjectId] = None
+    category_id: Optional[str] = None
+    brand_id: Optional[str] = None
     variants: List[VariantEmbedded] = []
     images: List[ProductImageEmbedded] = []
 
@@ -164,7 +164,7 @@ class ProductOut(AppBaseModel):
 
     Fields:
     -------
-    id : Optional[PyObjectId]
+    id : Optional[str]
         MongoDB document ID (mapped from '_id').
 
     product_name : str
@@ -207,7 +207,7 @@ class ProductOut(AppBaseModel):
     - variants list may be empty.
     """
 
-    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    id: Optional[str] = Field(default=None, alias="_id")
     product_name: str
     description: Optional[str] = None
     price: Optional[float] = None
@@ -242,10 +242,10 @@ class ProductUpdate(AppBaseModel):
     price : Optional[float]
         Updated base price.
 
-    category_id : Optional[PyObjectId]
+    category_id : Optional[str]
         Updated category reference.
 
-    brand_id : Optional[PyObjectId]
+    brand_id : Optional[str]
         Updated brand reference.
 
     product_is_active : Optional[bool]
@@ -266,6 +266,6 @@ class ProductUpdate(AppBaseModel):
     product_name: Optional[str] = None
     description: Optional[str] = None
     price: Optional[float] = None
-    category_id: Optional[PyObjectId] = None
-    brand_id: Optional[PyObjectId] = None
+    category_id: Optional[str] = None
+    brand_id: Optional[str] = None
     product_is_active: Optional[bool] = None

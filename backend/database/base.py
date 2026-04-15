@@ -4,59 +4,6 @@ from typing import Optional, Generic, TypeVar
 from pydantic import BaseModel
 from bson import ObjectId
 
-
-class PyObjectId(str):
-    """
-    PyObjectId Custom Type
-
-    Purpose:
-    --------
-    A custom type that allows Pydantic to accept and validate MongoDB ObjectId values.
-
-    MongoDB uses ObjectId as its primary identifier, but Pydantic does not natively
-    support ObjectId. This class converts ObjectId into a string representation
-    while ensuring it is valid.
-
-    Behavior:
-    ---------
-    - Validates whether a given value is a valid MongoDB ObjectId.
-    - Converts ObjectId to string for compatibility with JSON and APIs.
-
-    Methods:
-    --------
-    __get_validators__():
-        Provides validator methods to Pydantic.
-
-    validate(v):
-        Validates the input value as a proper ObjectId.
-
-    Parameters:
-    -----------
-    v : Any
-        The value to validate.
-
-    Returns:
-    --------
-    str
-        A valid ObjectId converted to string.
-
-    Edge Cases:
-    -----------
-    - Invalid ObjectId string → raises ValueError.
-    - Non-string inputs are converted to string before validation.
-    """
-
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, v, _info=None):
-        if not ObjectId.is_valid(str(v)):
-            raise ValueError(f"Invalid ObjectId: {v}")
-        return str(v)
-
-
 class AppBaseModel(BaseModel):
     """
     AppBaseModel (Base Configuration Model)
