@@ -31,9 +31,6 @@ async def get_all_products():
 
     products = await db.products.find().to_list(100)
 
-    for p in products:
-        p["_id"] = str(p["_id"])
-
     return SuccessResponse(data=products)
 
 
@@ -41,12 +38,11 @@ async def get_all_products():
 @router.get("/{product_id}", response_model=SuccessResponse[dict])
 async def get_product(product_id: str):
 
-    product = await db.products.find_one({"_id": product_id})   # ✅ FIX
+    product = await db.products.find_one({"_id": product_id})
 
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    product["_id"] = str(product["_id"])
     return SuccessResponse(data=product)
 
 
