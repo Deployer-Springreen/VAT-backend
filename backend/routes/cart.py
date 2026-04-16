@@ -21,12 +21,11 @@ async def bulk_add_to_cart(
 @router.get("/", response_model=SuccessResponse[dict])
 async def get_cart(current_user_id: str = Depends(get_current_user)):
 
-    cart = await db.carts.find_one({"user_id": current_user_id})
+    cart = await db.carts.find_one({"_id": current_user_id})
 
     if not cart:
         return SuccessResponse(data={"items": []})
 
-    cart["_id"] = str(cart["_id"])
     return SuccessResponse(data=cart)
 
 
@@ -39,7 +38,7 @@ async def update_quantity(
 
     if quantity == 0:
         await db.carts.update_one(
-            {"user_id": current_user_id},
+            {"_id": current_user_id},
             {"$pull": {"items": {"product_id": product_id}}}
         )
         return SuccessResponse(message="item removed")
@@ -49,7 +48,7 @@ async def update_quantity(
 
     result = await db.carts.update_one(
         {
-            "user_id": current_user_id,
+            "_id": current_user_id,
             "items.product_id": product_id
         },
         {
@@ -67,7 +66,7 @@ async def update_quantity(
 async def remove_item(product_id: str, current_user_id: str = Depends(get_current_user)):
 
     await db.carts.update_one(
-        {"user_id": current_user_id},
+        {"_id": current_user_id},
         {"$pull": {"items": {"product_id": product_id}}}
     )
 
@@ -77,7 +76,7 @@ async def remove_item(product_id: str, current_user_id: str = Depends(get_curren
 @router.post("/checkout", response_model=SuccessResponse[dict], status_code=201)
 async def checkout(current_user_id: str = Depends(get_current_user)):
 
-    cart = await db.carts.find_one({"user_id": current_user_id})
+    cart = await db.carts.find_one({"_id": current_user_id})
 
     if not cart or not cart.get("items"):
         raise HTTPException(status_code=400, detail="Cart is empty")

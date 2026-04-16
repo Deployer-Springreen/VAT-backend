@@ -5,24 +5,21 @@ from fastapi import HTTPException
 # ✅ MOVE ITEM TO CART (ATOMIC + SAFE)
 async def move_item_to_cart(user_id: str, product_id: str):
 
-    # 1️⃣ ATOMIC REMOVE FROM WISHLIST
-    result = await db.wishlist.update_one(
-        {
-            "_id": user_id,
-            "items.product_id": product_id
-        },
-        {
-            "$pull": {
-                "items": {"product_id": product_id}
-            }
-        }
+    # 1️⃣ Atomically find and remove the item from the wishlist
+    # Using find_one_and_update to get the removed item's details in one go
+    wishlist = await db.wishlist.find_one_and_update(
+        {"_id": user_id, "items.product_id": product_id},
+        {"$pull": {"items": {"product_id": product_id}}},
+        projection={"items.$": 1}
     )
 
-    # 👉 if nothing removed → already moved / not present
-    if result.modified_count == 0:
+    if not wishlist or not wishlist.get("items"):
         return "item already moved or not present"
 
-    # 2️⃣ UPDATE CART (increment if exists)
+    item = wishlist["items"][0]
+
+    # 2️⃣ Update or insert into cart
+    # Try to increment if exists
     result = await db.carts.update_one(
         {
             "_id": user_id,
@@ -33,14 +30,16 @@ async def move_item_to_cart(user_id: str, product_id: str):
         }
     )
 
-    # 3️⃣ IF ITEM NOT IN CART → ADD IT
+    # If not in cart, push the whole item
     if result.matched_count == 0:
         await db.carts.update_one(
             {"_id": user_id},
             {
-                "$addToSet": {   # ✅ prevents duplicates
+                "$push": {
                     "items": {
                         "product_id": product_id,
+                        "product_name": item.get("product_name"),
+                        "price": item.get("price", 0),
                         "quantity": 1
                     }
                 }

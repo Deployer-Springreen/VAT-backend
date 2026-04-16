@@ -3,27 +3,62 @@ from fastapi import HTTPException
 from datetime import datetime
 
 
-# ✅ CALCULATE SUMMARY (no change needed)
-async def calculate_summary(cart):
-    subtotal = sum(item["price"] * item.get("quantity", 1) for item in cart.get("items", []))
-    discount = 0
+# ✅ CALCULATE SUMMARY (OFFLOADED TO MONGODB)
+async def calculate_summary(user_id: str):
+    pipeline = [
+        {"$match": {"_id": user_id}},
+        {"$unwind": {"path": "$items", "preserveNullAndEmptyArrays": True}},
+        {
+            "$group": {
+                "_id": "$_id",
+                "subtotal": {
+                    "$sum": {"$multiply": ["$items.price", "$items.quantity"]}
+                },
+                "coupon": {"$first": "$coupon"}
+            }
+        },
+        {
+            "$project": {
+                "subtotal": {"$round": ["$subtotal", 2]},
+                "discount": {
+                    "$cond": [
+                        {"$not": ["$coupon"]},
+                        0,
+                        {
+                            "$cond": [
+                                {"$eq": ["$coupon.type", "percent"]},
+                                {"$multiply": ["$subtotal", {"$divide": ["$coupon.discount", 100]}]},
+                                "$coupon.discount"
+                            ]
+                        }
+                    ]
+                },
+                "shipping": {
+                    "$cond": [{"$gt": ["$subtotal", 100]}, 0, 10]
+                }
+            }
+        },
+        {
+            "$project": {
+                "subtotal": 1,
+                "discount": {"$round": ["$discount", 2]},
+                "shipping": 1,
+                "total": {"$round": [{"$add": [{"$subtract": ["$subtotal", "$discount"]}, "$shipping"]}, 2]}
+            }
+        }
+    ]
 
-    if cart.get("coupon"):
-        coupon = cart["coupon"]
-        if coupon.get("type") == "percent":
-            discount = subtotal * (coupon.get("discount", 0) / 100)
-        else:
-            discount = coupon.get("discount", 0)
+    result = await db.carts.aggregate(pipeline).to_list(1)
 
-    shipping = 0 if subtotal > 100 else 10
-    total = subtotal - discount + shipping
+    if not result:
+        return {
+            "subtotal": 0,
+            "discount": 0,
+            "shipping": 10,
+            "total": 10
+        }
 
-    return {
-        "subtotal": round(subtotal, 2),
-        "discount": round(discount, 2),
-        "shipping": shipping,
-        "total": round(total, 2)
-    }
+    return result[0]
 
 
 # ✅ BULK ADD TO CART (ATOMIC + NO DUPLICATES)
@@ -108,18 +143,68 @@ async def remove_item_from_cart(user_id: str, product_id: str):
 # ✅ CHECKOUT (SAFE)
 async def checkout_cart(user_id: str):
 
-    cart = await db.carts.find_one({"_id": user_id})
+    # Use aggregation to get both cart items and summary in one go
+    pipeline = [
+        {"$match": {"_id": user_id}},
+        {"$unwind": {"path": "$items", "preserveNullAndEmptyArrays": True}},
+        {
+            "$group": {
+                "_id": "$_id",
+                "items": {"$push": "$items"},
+                "subtotal": {
+                    "$sum": {"$multiply": ["$items.price", "$items.quantity"]}
+                },
+                "coupon": {"$first": "$coupon"}
+            }
+        },
+        {
+            "$project": {
+                "items": {
+                    "$filter": {
+                        "input": "$items",
+                        "as": "item",
+                        "cond": {"$ne": ["$$item", {}]}
+                    }
+                },
+                "subtotal": {"$round": ["$subtotal", 2]},
+                "discount": {
+                    "$cond": [
+                        {"$not": ["$coupon"]},
+                        0,
+                        {
+                            "$cond": [
+                                {"$eq": ["$coupon.type", "percent"]},
+                                {"$multiply": ["$subtotal", {"$divide": ["$coupon.discount", 100]}]},
+                                "$coupon.discount"
+                            ]
+                        }
+                    ]
+                },
+                "shipping": {
+                    "$cond": [{"$gt": ["$subtotal", 100]}, 0, 10]
+                }
+            }
+        },
+        {
+            "$project": {
+                "items": 1,
+                "total": {"$round": [{"$add": [{"$subtract": ["$subtotal", "$discount"]}, "$shipping"]}, 2]}
+            }
+        }
+    ]
 
-    if not cart or not cart.get("items"):
+    result = await db.carts.aggregate(pipeline).to_list(1)
+
+    if not result or not result[0].get("items"):
         raise HTTPException(status_code=400, detail="Cart is empty")
 
-    summary = await calculate_summary(cart)
+    cart_data = result[0]
 
     order = {
         "_id": f"ORD{datetime.utcnow().timestamp()}",
         "user_id": user_id,
-        "items": cart["items"],
-        "total_amount": summary["total"],
+        "items": cart_data["items"],
+        "total_amount": cart_data["total"],
         "status": "PENDING",
         "created_at": datetime.utcnow()
     }
