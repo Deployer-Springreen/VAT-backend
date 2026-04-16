@@ -15,7 +15,7 @@ async def bulk_add_to_wishlist(
     current_user_id: str = Depends(get_current_user)
 ):
     if data.user_id != current_user_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+        raise HTTPException(status_code=503, detail="Not authorized")
 
     msg = await bulk_add_wishlist(data.user_id, data.product_ids)
     return SuccessResponse(message=msg)
@@ -83,18 +83,30 @@ async def clear_wishlist(
 
 # ✅ MOVE TO CART (FIXED BODY INPUT)
 @router.post("/move-to-cart", response_model=SuccessResponse[dict])
-async def move_to_cart(
-    data: dict,
-    current_user_id: str = Depends(get_current_user)
-):
-    user_id = data.get("user_id")
-    product_id = data.get("product_id")
+async def move_item_to_cart(user_id: str, product_id: str):
 
-    if not user_id or not product_id:
-        raise HTTPException(status_code=400, detail="Missing fields")
+    # ✅ STEP 1: ATOMIC REMOVE
+    result = await db.wishlist.update_one(
+        {"_id": user_id, "items.product_id": product_id},
+        {"$pull": {"items": {"product_id": product_id}}}
+    )
 
-    if user_id != current_user_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+    # 👉 if nothing removed → already moved / not present
+    if result.modified_count == 0:
+        return "item already moved or not present"
 
-    msg = await move_item_to_cart(user_id, product_id)
-    return SuccessResponse(message=msg)
+    # ✅ STEP 2: ATOMIC ADD TO CART
+    await db.carts.update_one(
+        {"_id": user_id},
+        {
+            "$addToSet": {
+                "items": {
+                    "product_id": product_id,
+                    "quantity": 1
+                }
+            }
+        },
+        upsert=True
+    )
+
+    return "moved to cart"

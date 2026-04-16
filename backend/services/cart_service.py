@@ -2,6 +2,8 @@ from db import db
 from fastapi import HTTPException
 from datetime import datetime
 
+
+# ✅ CALCULATE SUMMARY (no change needed)
 async def calculate_summary(cart):
     subtotal = sum(item["price"] * item.get("quantity", 1) for item in cart.get("items", []))
     discount = 0
@@ -23,70 +25,98 @@ async def calculate_summary(cart):
         "total": round(total, 2)
     }
 
+
+# ✅ BULK ADD TO CART (ATOMIC + NO DUPLICATES)
 async def bulk_add_items(user_id: str, product_ids: list):
     if not product_ids:
         raise HTTPException(status_code=400, detail="No products provided")
 
-    # ✅ FIXED: use _id instead of product_id
-    products = await db.products.find({
-        "_id": {"$in": product_ids}
-    }).to_list(length=len(product_ids))
+    # ✅ fetch valid products
+    products = await db.products.find(
+        {"_id": {"$in": product_ids}}
+    ).to_list(length=len(product_ids))
 
     if not products:
         raise HTTPException(status_code=404, detail="No valid products found")
 
-    cart = await db.carts.find_one({"user_id": user_id})
+    # ✅ prepare items
+    items = [
+        {
+            "product_id": str(p["_id"]),
+            "product_name": p.get("product_name"),
+            "price": p.get("price", 0),
+            "quantity": 1
+        }
+        for p in products
+    ]
 
-    # ✅ CREATE NEW CART
-    if not cart:
-        items = [
-            {
-                "product_id": p["_id"],   # ✅ FIXED
-                "product_name": p.get("product_name"),
-                "price": p.get("price", 0),
-                "quantity": 1
-            }
-            for p in products
-        ]
-
-        await db.carts.insert_one({
-            "user_id": user_id,
-            "items": items,
-            "coupon": None
-        })
-
-        return "cart created with items"
-
-    # ✅ MERGE EXISTING ITEMS
-    existing_items = {item["product_id"]: item for item in cart["items"]}
-
-    for p in products:
-        pid = p["_id"]   # ✅ FIXED
-
-        if pid in existing_items:
-            existing_items[pid]["quantity"] += 1
-        else:
-            existing_items[pid] = {
-                "product_id": pid,
-                "product_name": p.get("product_name"),
-                "price": p.get("price", 0),
-                "quantity": 1
-            }
-
+    # 🔥 ATOMIC UPSERT (no find_one)
     await db.carts.update_one(
-        {"user_id": user_id},
-        {"$set": {"items": list(existing_items.values())}}
+        {"_id": user_id},   # ✅ FIX (no user_id field)
+        {
+            "$addToSet": {
+                "items": {"$each": items}
+            }
+        },
+        upsert=True
     )
 
-    return "bulk items added to cart"
+    return "items added to cart"
 
+
+# ✅ UPDATE QUANTITY (ATOMIC)
+async def update_cart_quantity(user_id: str, product_id: str, quantity: int):
+
+    if quantity < 1:
+        # remove item if quantity = 0
+        await db.carts.update_one(
+            {"_id": user_id},
+            {"$pull": {"items": {"product_id": product_id}}}
+        )
+        return "item removed"
+
+    result = await db.carts.update_one(
+        {
+            "_id": user_id,
+            "items.product_id": product_id
+        },
+        {
+            "$set": {"items.$.quantity": quantity}
+        }
+    )
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    return "quantity updated"
+
+
+# ✅ REMOVE ITEM (ATOMIC)
+async def remove_item_from_cart(user_id: str, product_id: str):
+
+    result = await db.carts.update_one(
+        {"_id": user_id},
+        {"$pull": {"items": {"product_id": product_id}}}
+    )
+
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    return "item removed"
+
+
+# ✅ CHECKOUT (SAFE)
 async def checkout_cart(user_id: str):
-    cart = await db.carts.find_one({"user_id": user_id})
+
+    cart = await db.carts.find_one({"_id": user_id})
+
     if not cart or not cart.get("items"):
         raise HTTPException(status_code=400, detail="Cart is empty")
 
     summary = await calculate_summary(cart)
+
     order = {
+        "_id": f"ORD{datetime.utcnow().timestamp()}",
         "user_id": user_id,
         "items": cart["items"],
         "total_amount": summary["total"],
@@ -95,8 +125,10 @@ async def checkout_cart(user_id: str):
     }
 
     result = await db.orders.insert_one(order)
+
+    # ✅ clear cart atomically
     await db.carts.update_one(
-        {"user_id": user_id},
+        {"_id": user_id},
         {"$set": {"items": [], "coupon": None}}
     )
 

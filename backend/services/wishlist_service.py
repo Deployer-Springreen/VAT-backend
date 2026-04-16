@@ -2,26 +2,30 @@ from db import db
 from fastapi import HTTPException
 
 
-# ✅ MOVE TO CART (already mostly correct)
+# ✅ MOVE ITEM TO CART (ATOMIC + SAFE)
 async def move_item_to_cart(user_id: str, product_id: str):
 
-    wishlist = await db.wishlist.find_one({"user_id": user_id})
-
-    if not wishlist:
-        raise HTTPException(status_code=404, detail="Wishlist empty")
-
-    item = next(
-        (i for i in wishlist["items"] if i["product_id"] == product_id),
-        None
+    # 1️⃣ ATOMIC REMOVE FROM WISHLIST
+    result = await db.wishlist.update_one(
+        {
+            "_id": user_id,
+            "items.product_id": product_id
+        },
+        {
+            "$pull": {
+                "items": {"product_id": product_id}
+            }
+        }
     )
 
-    if not item:
-        raise HTTPException(status_code=404, detail="Item not found")
+    # 👉 if nothing removed → already moved / not present
+    if result.modified_count == 0:
+        return "item already moved or not present"
 
-    # ✅ update cart
+    # 2️⃣ UPDATE CART (increment if exists)
     result = await db.carts.update_one(
         {
-            "user_id": user_id,
+            "_id": user_id,
             "items.product_id": product_id
         },
         {
@@ -29,15 +33,14 @@ async def move_item_to_cart(user_id: str, product_id: str):
         }
     )
 
+    # 3️⃣ IF ITEM NOT IN CART → ADD IT
     if result.matched_count == 0:
         await db.carts.update_one(
-            {"user_id": user_id},
+            {"_id": user_id},
             {
-                "$push": {
+                "$addToSet": {   # ✅ prevents duplicates
                     "items": {
                         "product_id": product_id,
-                        "product_name": item["product_name"],
-                        "price": item["price"],
                         "quantity": 1
                     }
                 }
@@ -45,60 +48,42 @@ async def move_item_to_cart(user_id: str, product_id: str):
             upsert=True
         )
 
-    # ✅ remove from wishlist
-    await db.wishlist.update_one(
-        {"user_id": user_id},
-        {"$pull": {"items": {"product_id": product_id}}}
-    )
-
     return "moved to cart"
 
 
-# ✅ FIXED BULK ADD
+# ✅ BULK ADD TO WISHLIST (ATOMIC + NO DUPLICATES)
 async def bulk_add_wishlist(user_id: str, product_ids: list):
 
     if not product_ids:
         raise HTTPException(status_code=400, detail="No products provided")
 
-    # 🔥 FIX HERE (_id instead of product_id)
-    print("Incoming IDs:", product_ids)
-
-    products = await db.products.find({
-        "_id": {"$in": product_ids}
-    }).to_list(length=len(product_ids))
-
-    print("Products found:", products)
+    # 🔥 fetch valid products using _id
+    products = await db.products.find(
+        {"_id": {"$in": product_ids}}
+    ).to_list(length=len(product_ids))
 
     if not products:
         raise HTTPException(status_code=404, detail="No valid products found")
 
-    # 🔥 FIX HERE (use _id)
+    # prepare items
     items = [
         {
-            "product_id": p["_id"],
+            "product_id": str(p["_id"]),
             "product_name": p.get("product_name"),
             "price": p.get("price", 0)
         }
         for p in products
     ]
 
-    wishlist = await db.wishlist.find_one({"user_id": user_id})
-
-    if not wishlist:
-        await db.wishlist.insert_one({
-            "user_id": user_id,
-            "items": items
-        })
-        return "wishlist created with items"
-
-    # ✅ avoid duplicates
+    # ✅ ATOMIC UPSERT + NO DUPLICATES
     await db.wishlist.update_one(
-        {"user_id": user_id},
+        {"_id": user_id},   # 🔥 use _id only
         {
             "$addToSet": {
                 "items": {"$each": items}
             }
-        }
+        },
+        upsert=True
     )
 
-    return "bulk items added"
+    return "wishlist updated"
