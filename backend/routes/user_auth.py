@@ -25,7 +25,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 # ✅ SIGNUP
-@router.post("/signup", response_model=SuccessResponse[dict], status_code=201, dependencies=[Depends(rate_limit(5, 60))])
+@router.post("/signup", response_model=SuccessResponse[dict], status_code=201)
 async def signup(data: SignupRequest):
 
     existing = await db.users.find_one({
@@ -61,7 +61,7 @@ async def signup(data: SignupRequest):
 
 
 # ✅ SIGNIN
-@router.post("/signin", response_model=SuccessResponse[dict], dependencies=[Depends(rate_limit(10, 60))])
+@router.post("/signin", response_model=SuccessResponse[dict])
 async def signin(data: SigninRequest):
 
     user = await db.users.find_one({
