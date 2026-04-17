@@ -11,6 +11,7 @@ async def create_category(data: CategoryCreate):
     return category_id
 
 async def get_all_categories(skip: int = 0, limit: int = 10):
+    limit = min(limit, 100)
     return await db.categories.find().skip(skip).limit(limit).to_list(limit)
 
 async def get_category(category_id: str):

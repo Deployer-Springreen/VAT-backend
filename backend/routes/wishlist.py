@@ -60,26 +60,6 @@ async def clear_wishlist(current_user_id: str = Depends(get_current_user)):
 # ✅ MOVE TO CART
 @router.post("/move-to-cart", response_model=SuccessResponse[dict])
 async def move_to_cart(product_id: str, current_user_id: str = Depends(get_current_user)):
-
-    result = await db.wishlist.update_one(
-        {"_id": current_user_id, "items.product_id": product_id},
-        {"$pull": {"items": {"product_id": product_id}}}
-    )
-
-    if result.modified_count == 0:
-        return SuccessResponse(message="not in wishlist")
-
-    await db.carts.update_one(
-        {"_id": current_user_id},
-        {
-            "$addToSet": {
-                "items": {
-                    "product_id": product_id,
-                    "quantity": 1
-                }
-            }
-        },
-        upsert=True
-    )
-
-    return SuccessResponse(message="moved to cart")
+    from services.wishlist_service import move_item_to_cart
+    msg = await move_item_to_cart(current_user_id, product_id)
+    return SuccessResponse(message=msg)

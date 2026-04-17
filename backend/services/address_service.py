@@ -1,14 +1,20 @@
 from db import db
 from database.address import AddressEmbedded
 from fastapi import HTTPException
+import uuid
 
 async def add_address(user_id: str, address: AddressEmbedded):
+    address_data = address.model_dump()
+    if not address_data.get("address_id"):
+        address_data["address_id"] = str(uuid.uuid4())
+
     await db.users.update_one(
         {"_id": user_id},
-        {"$push": {"addresses": address.model_dump()}}
+        {"$push": {"addresses": address_data}}
     )
 
 async def get_addresses(user_id: str, skip: int = 0, limit: int = 10):
+    limit = min(limit, 100)
     user = await db.users.find_one(
         {"_id": user_id},
         {"addresses": {"$slice": [skip, limit]}}
@@ -17,44 +23,23 @@ async def get_addresses(user_id: str, skip: int = 0, limit: int = 10):
         raise HTTPException(status_code=404, detail="User not found")
     return user.get("addresses", [])
 
-async def update_address(user_id: str, address_index: int, address: AddressEmbedded):
-    user = await db.users.find_one({"_id": user_id})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+async def update_address(user_id: str, address_id: str, address: AddressEmbedded):
+    address_data = address.model_dump()
+    address_data["address_id"] = address_id # Ensure ID stays same
 
-    addresses = user.get("addresses", [])
-    if address_index < 0 or address_index >= len(addresses):
+    result = await db.users.update_one(
+        {"_id": user_id, "addresses.address_id": address_id},
+        {"$set": {"addresses.$": address_data}}
+    )
+
+    if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Address not found")
 
-    update_key = f"addresses.{address_index}"
-    await db.users.update_one(
+async def delete_address(user_id: str, address_id: str):
+    result = await db.users.update_one(
         {"_id": user_id},
-        {"$set": {update_key: address.model_dump()}}
+        {"$pull": {"addresses": {"address_id": address_id}}}
     )
 
-async def delete_address(user_id: str, address_index: int):
-    # To delete by index in an array, we can use $unset followed by $pull
-    # $unset will set the element at address_index to null
-    # $pull will then remove all nulls from the array
-
-    # First, verify user exists and index is valid
-    user = await db.users.find_one({"_id": user_id}, {"addresses": 1})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    addresses = user.get("addresses", [])
-    if address_index < 0 or address_index >= len(addresses):
+    if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Address not found")
-
-    # Step 1: Set the specific element to null
-    unset_key = f"addresses.{address_index}"
-    await db.users.update_one(
-        {"_id": user_id},
-        {"$unset": {unset_key: 1}}
-    )
-
-    # Step 2: Pull all null values from the addresses array
-    await db.users.update_one(
-        {"_id": user_id},
-        {"$pull": {"addresses": None}}
-    )

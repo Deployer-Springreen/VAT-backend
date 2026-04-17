@@ -21,6 +21,7 @@ def verify_password(plain, hashed):
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
+    to_encode.update({"type": "access"})
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
@@ -30,12 +31,30 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 
-def verify_access_token(token: str):
+def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    to_encode.update({"type": "refresh"})
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(days=Config.REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, Config.JWT_SECRET, algorithm=Config.ALGORITHM)
+    return encoded_jwt
+
+
+def verify_token(token: str, token_type: str = "access"):
     try:
         payload = jwt.decode(token, Config.JWT_SECRET, algorithms=[Config.ALGORITHM])
+        if payload.get("type") != token_type:
+            return None
         return payload
     except jwt.PyJWTError:
         return None
+
+
+def verify_access_token(token: str):
+    return verify_token(token, "access")
 
 
 async def get_current_user(auth: HTTPAuthorizationCredentials = Depends(security)):

@@ -68,10 +68,7 @@ class CartOut(AppBaseModel):
     Fields:
     -------
     id : Optional[str]
-        MongoDB document ID (mapped from '_id').
-
-    user_id : str
-        Reference to the user who owns the cart.
+        MongoDB document ID (mapped from '_id'), which is the User ID.
 
     items : List[CartItemEmbedded]
         List of cart items (embedded).
@@ -89,14 +86,12 @@ class CartOut(AppBaseModel):
     """
 
     id: Optional[str] = Field(default=None, alias="_id")
-    user_id: str
     items: List[CartItemEmbedded] = Field(default_factory=list)
 
 
 
 
 class AddToCartBulkRequest(BaseModel):
-    user_id: str
     product_ids: List[str]
 
 

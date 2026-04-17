@@ -17,12 +17,12 @@ async def get_addresses(current_user_id: str = Depends(get_current_user), skip: 
     addresses = await address_service.get_addresses(current_user_id, skip, limit)
     return SuccessResponse(data=addresses)
 
-@router.put("/update/{index}", response_model=SuccessResponse[dict])
-async def update_address(index: int, address: AddressEmbedded, current_user_id: str = Depends(get_current_user)):
-    await address_service.update_address(current_user_id, index, address)
+@router.put("/update/{address_id}", response_model=SuccessResponse[dict])
+async def update_address(address_id: str, address: AddressEmbedded, current_user_id: str = Depends(get_current_user)):
+    await address_service.update_address(current_user_id, address_id, address)
     return SuccessResponse(message="Address updated")
 
-@router.delete("/delete/{index}", response_model=SuccessResponse[dict])
-async def delete_address(index: int, current_user_id: str = Depends(get_current_user)):
-    await address_service.delete_address(current_user_id, index)
+@router.delete("/delete/{address_id}", response_model=SuccessResponse[dict])
+async def delete_address(address_id: str, current_user_id: str = Depends(get_current_user)):
+    await address_service.delete_address(current_user_id, address_id)
     return SuccessResponse(message="Address removed")

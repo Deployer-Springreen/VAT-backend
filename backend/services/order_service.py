@@ -12,13 +12,14 @@ from fastapi import HTTPException
 from datetime import datetime
 
 # ORDER SERVICES
-async def create_order(data: OrderCreate):
+async def create_order(data: OrderCreate, user_id: str):
     # In a real app, we'd fetch items from the cart here.
     # For now, we'll implement basic CRUD that allows passing items for testing purposes
     # but the user requested basic CRUD without Razorpay.
     order_id = await generate_order_id(db)
     order = data.model_dump()
     order["_id"] = order_id
+    order["user_id"] = user_id
     order["status"] = "PENDING"
 
     # Ensure items and total_amount are present if provided in the schema,
@@ -65,10 +66,11 @@ async def get_payment(payment_id: str):
     return payment
 
 # RETURN SERVICES (Order Fullfillment)
-async def create_return_request(data: ReturnCreate):
+async def create_return_request(data: ReturnCreate, user_id: str):
     return_id = await generate_purchase_intent_id(db) # Reusing this for return IDs or we can add generate_return_id
     return_req = data.model_dump()
     return_req["_id"] = return_id
+    return_req["user_id"] = user_id
     return_req["return_status"] = "REQUESTED"
     return_req["return_created_at"] = datetime.utcnow()
     await db.returns.insert_one(return_req)

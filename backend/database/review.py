@@ -20,9 +20,6 @@ class ReviewCreate(AppBaseModel):
 
     Fields:
     -------
-    user_id : str
-        ID of the user submitting the review.
-
     product_id : str
         ID of the product being reviewed.
 
@@ -54,7 +51,6 @@ class ReviewCreate(AppBaseModel):
     - Duplicate reviews by same user for same product should be prevented externally.
     """
 
-    user_id: str
     product_id: str
     rating: float = Field(..., ge=1.0, le=5.0)
     comment: Optional[str] = None
@@ -79,9 +75,6 @@ class ReviewOut(AppBaseModel):
     -------
     id : Optional[str]
         MongoDB document ID (mapped from '_id').
-
-    user_id : str
-        ID of the user who submitted the review.
 
     product_id : str
         ID of the reviewed product.
@@ -115,7 +108,6 @@ class ReviewOut(AppBaseModel):
     """
 
     id: Optional[str] = Field(default=None, alias="_id")
-    user_id: str
     product_id: str
     order_item: dict = {}
     verified_purchase: bool = False

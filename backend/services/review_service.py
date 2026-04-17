@@ -3,20 +3,22 @@ from database.review import ReviewCreate
 from services.id_generator import generate_review_id
 from fastapi import HTTPException
 
-async def create_review(data: ReviewCreate):
+async def create_review(data: ReviewCreate, user_id: str):
     # Verify product exists
-    product = await db.products.find_one({"_id": data.product_id})
+    product = await db.products.find_one({"_id": data.product_id}, {"_id": 1})
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
     review_id = await generate_review_id(db)
     review = data.model_dump()
     review["_id"] = review_id
+    review["user_id"] = user_id
     await db.reviews.insert_one(review)
     return review_id
 
-async def get_product_reviews(product_id: str):
-    return await db.reviews.find({"product_id": product_id}).to_list(100)
+async def get_product_reviews(product_id: str, skip: int = 0, limit: int = 10):
+    limit = min(limit, 100)
+    return await db.reviews.find({"product_id": product_id}).skip(skip).limit(limit).to_list(limit)
 
 async def delete_review(review_id: str, user_id: str):
     result = await db.reviews.delete_one({"_id": review_id, "user_id": user_id})
