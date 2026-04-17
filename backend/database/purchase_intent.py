@@ -73,9 +73,6 @@ class OrderCreate(AppBaseModel):
 
     Fields:
     -------
-    user_id : str
-        ID of the user placing the order.
-
     address : AddressEmbedded
         Delivery address for the order.
 
@@ -91,7 +88,6 @@ class OrderCreate(AppBaseModel):
     - Missing or incomplete address → validation error.
     """
 
-    user_id: str
     address: AddressEmbedded
 
 
@@ -112,9 +108,6 @@ class OrderOut(AppBaseModel):
     -------
     id : Optional[str]
         MongoDB document ID (mapped from '_id').
-
-    user_id : str
-        ID of the user who placed the order.
 
     items : List[OrderItemEmbedded]
         List of ordered items (embedded snapshots).
@@ -145,7 +138,6 @@ class OrderOut(AppBaseModel):
     """
 
     id: Optional[str] = Field(default=None, alias="_id")
-    user_id: str
     
     items: List[OrderItemEmbedded] = Field(default_factory=list)
 

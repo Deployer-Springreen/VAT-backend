@@ -55,6 +55,7 @@ class AddressEmbedded(AppBaseModel):
     Usage Example:
     --------------
     address = AddressEmbedded(
+        address_id="uuid-string",
         street="123 Main St",
         city="Chennai",
         state="Tamil Nadu",
@@ -62,6 +63,7 @@ class AddressEmbedded(AppBaseModel):
         zipcode="600001"
     )
     """
+    address_id: str
     street:    Optional[str] = None
     city:      Optional[str] = None
     state:     Optional[str] = None

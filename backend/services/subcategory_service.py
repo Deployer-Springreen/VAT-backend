@@ -11,6 +11,7 @@ async def create_subcategory(data: SubcategoryCreate):
     return subcategory_id
 
 async def get_all_subcategories(skip: int = 0, limit: int = 10):
+    limit = min(limit, 100)
     return await db.subcategories.find().skip(skip).limit(limit).to_list(limit)
 
 async def get_subcategory(subcategory_id: str):

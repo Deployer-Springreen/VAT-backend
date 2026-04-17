@@ -21,9 +21,6 @@ class WishlistCreate(AppBaseModel):
 
     Fields:
     -------
-    user_id : str
-        ID of the user adding the product.
-
     product_id : str
         ID of the product to be added to wishlist.
 
@@ -43,13 +40,11 @@ class WishlistCreate(AppBaseModel):
     - Invalid user_id or product_id must be handled in service layer.
     """
 
-    user_id: str
     product_id: str
     product_variant: Dict[str, Any] = Field(default_factory=dict)
 
 
 class AddToWishlistBulkRequest(BaseModel):
-    user_id: str
     product_ids: List[str]
 
 class WishlistOut(AppBaseModel):
@@ -68,10 +63,7 @@ class WishlistOut(AppBaseModel):
     Fields:
     -------
     id : Optional[str]
-        MongoDB document ID (mapped from '_id').
-
-    user_id : str
-        ID of the user who owns the wishlist entry.
+        MongoDB document ID (mapped from '_id'), which is the User ID.
 
     product : Optional[ProductOut]
         Populated product details.
@@ -96,7 +88,6 @@ class WishlistOut(AppBaseModel):
     """
 
     id: Optional[str] = Field(default=None, alias="_id")
-    user_id: str
     product: Optional[ProductOut] = None
     product_variant: dict = {}
     wishlist_created: datetime = Field(default_factory=datetime.utcnow)

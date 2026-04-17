@@ -28,7 +28,7 @@ async def create_product(data: ProductCreate):
 # ✅ GET ALL PRODUCTS
 @router.get("/all", response_model=SuccessResponse[List[dict]])
 async def get_all_products(skip: int = 0, limit: int = 10):
-
+    limit = min(limit, 100)
     products = await db.products.find().skip(skip).limit(limit).to_list(limit)
 
     return SuccessResponse(data=products)

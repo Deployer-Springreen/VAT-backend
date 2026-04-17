@@ -11,8 +11,11 @@ from utils.security import (
     hash_password,
     verify_password,
     create_access_token,
+    create_refresh_token,
+    verify_token,
     get_current_user
 )
+from utils.rate_limiter import rate_limit
 from services.user_id_generator import generate_user_id
 from db import db
 from datetime import datetime, timedelta
@@ -22,7 +25,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 # ✅ SIGNUP
-@router.post("/signup", response_model=SuccessResponse[dict], status_code=201)
+@router.post("/signup", response_model=SuccessResponse[dict], status_code=201, dependencies=[Depends(rate_limit(5, 60))])
 async def signup(data: SignupRequest):
 
     existing = await db.users.find_one({
@@ -58,7 +61,7 @@ async def signup(data: SignupRequest):
 
 
 # ✅ SIGNIN
-@router.post("/signin", response_model=SuccessResponse[dict])
+@router.post("/signin", response_model=SuccessResponse[dict], dependencies=[Depends(rate_limit(10, 60))])
 async def signin(data: SigninRequest):
 
     user = await db.users.find_one({
@@ -66,22 +69,69 @@ async def signin(data: SigninRequest):
             {"email": data.identifier},
             {"phone": data.identifier}
         ]
-    })
+    }, {"password": 1, "email": 1, "phone": 1})
 
     # Security: Generic error message to prevent user enumeration
     if not user or not verify_password(data.password, user["password"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     access_token = create_access_token(data={"sub": user["_id"]})
+    refresh_token = create_refresh_token(data={"sub": user["_id"]})
+
+    # Store refresh token in DB
+    await db.refresh_tokens.update_one(
+        {"_id": user["_id"]},
+        {"$set": {"token": refresh_token, "created_at": datetime.utcnow()}},
+        upsert=True
+    )
 
     return SuccessResponse(
         message="login success",
         data={
             "access_token": access_token,
+            "refresh_token": refresh_token,
             "token_type": "bearer",
             "user_id": user["_id"]
         }
     )
+
+
+# ✅ REFRESH TOKEN
+@router.post("/refresh", response_model=SuccessResponse[dict])
+async def refresh(refresh_token: str):
+    payload = verify_token(refresh_token, "refresh")
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+    user_id = payload.get("sub")
+    stored_token = await db.refresh_tokens.find_one({"_id": user_id})
+
+    if not stored_token or stored_token["token"] != refresh_token:
+        raise HTTPException(status_code=401, detail="Refresh token expired or revoked")
+
+    access_token = create_access_token(data={"sub": user_id})
+    new_refresh_token = create_refresh_token(data={"sub": user_id})
+
+    # Rotate refresh token
+    await db.refresh_tokens.update_one(
+        {"_id": user_id},
+        {"$set": {"token": new_refresh_token, "created_at": datetime.utcnow()}}
+    )
+
+    return SuccessResponse(
+        data={
+            "access_token": access_token,
+            "refresh_token": new_refresh_token,
+            "token_type": "bearer"
+        }
+    )
+
+
+# ✅ LOGOUT
+@router.post("/logout", response_model=SuccessResponse[dict])
+async def logout(current_user_id: str = Depends(get_current_user)):
+    await db.refresh_tokens.delete_one({"_id": current_user_id})
+    return SuccessResponse(message="logged out")
 
 
 # ✅ FORGOT PASSWORD

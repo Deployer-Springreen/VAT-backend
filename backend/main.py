@@ -77,6 +77,9 @@ async def create_indexes():
     await db.otp.create_index("email", unique=True)
     await db.otp.create_index("created_at", expireAfterSeconds=300)
 
+    # REFRESH TOKENS (TTL 7 days)
+    await db.refresh_tokens.create_index("created_at", expireAfterSeconds=7 * 24 * 3600)
+
     # PRODUCTS
     await db.products.create_index("category_id")
     await db.products.create_index("subcategory_id")

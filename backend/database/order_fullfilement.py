@@ -23,8 +23,6 @@ class ReturnCreate(AppBaseModel):
     order_id : str
         ID of the order associated with the return.
 
-    user_id : str
-        ID of the user requesting the return.
 
     order_item : dict
         Snapshot of the specific item being returned.
@@ -55,7 +53,6 @@ class ReturnCreate(AppBaseModel):
 
     
     order_id: str
-    user_id: str
     order_item: Dict[str, Any] = Field(default_factory=dict)
     return_quantity: int = Field(default=1, ge=1)
     return_reason: Optional[str] = None
@@ -83,8 +80,6 @@ class ReturnOut(AppBaseModel):
     order_id : str
         ID of the associated order.
 
-    user_id : str
-        ID of the user.
 
     order_item : dict
         Snapshot of the returned item.
@@ -121,7 +116,6 @@ class ReturnOut(AppBaseModel):
 
     id: Optional[str] = Field(default=None, alias="_id")
     order_id: str
-    user_id: str
     order_item: dict = {}
     return_quantity: int = 1
     return_reason: Optional[str] = None
