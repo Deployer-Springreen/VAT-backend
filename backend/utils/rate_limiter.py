@@ -20,9 +20,8 @@ class RateLimiter:
 
         try:
             current = await redis_client.get(key)
-        except Exception as e:
-            # Fallback if redis is not available - allow request but log error
-            print(f"Redis error: {e}")
+        except Exception:
+            # Fallback if redis is not available - allow request
             return
 
         if current and int(current) >= self.requests_limit:
