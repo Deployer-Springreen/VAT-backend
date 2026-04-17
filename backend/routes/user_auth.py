@@ -45,7 +45,7 @@ async def signup(data: SignupRequest):
         "name": data.name,
         "phone": data.phone,
         "email": data.email,
-        "password": hash_password(data.password),
+        "password": await hash_password(data.password),
         "profile_completed": False
     }
 
@@ -72,7 +72,7 @@ async def signin(data: SigninRequest):
     }, {"password": 1, "email": 1, "phone": 1})
 
     # Security: Generic error message to prevent user enumeration
-    if not user or not verify_password(data.password, user["password"]):
+    if not user or not await verify_password(data.password, user["password"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     access_token = create_access_token(data={"sub": user["_id"]})
@@ -177,7 +177,7 @@ async def reset_password(data: ResetPasswordRequest):
 
     await db.users.update_one(
         {"email": data.email},
-        {"$set": {"password": hash_password(data.new_password)}}
+        {"$set": {"password": await hash_password(data.new_password)}}
     )
 
     return SuccessResponse(message="Password updated")

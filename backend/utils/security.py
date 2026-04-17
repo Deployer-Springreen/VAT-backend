@@ -5,18 +5,19 @@ from config import Config
 from typing import Optional
 from fastapi import HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.concurrency import run_in_threadpool
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 security = HTTPBearer()
 
 
-def hash_password(password: str):
-    return pwd_context.hash(password)
+async def hash_password(password: str):
+    return await run_in_threadpool(pwd_context.hash, password)
 
 
-def verify_password(plain, hashed):
-    return pwd_context.verify(plain, hashed)
+async def verify_password(plain, hashed):
+    return await run_in_threadpool(pwd_context.verify, plain, hashed)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):

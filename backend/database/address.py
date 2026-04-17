@@ -63,7 +63,7 @@ class AddressEmbedded(AppBaseModel):
         zipcode="600001"
     )
     """
-    address_id: str
+    address_id: Optional[str] = None
     street:    Optional[str] = None
     city:      Optional[str] = None
     state:     Optional[str] = None
