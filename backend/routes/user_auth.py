@@ -18,8 +18,10 @@ from utils.security import (
 from utils.rate_limiter import rate_limit
 from services.user_id_generator import generate_user_id
 from db import db
+from redis_db import redis_client
 from datetime import datetime, timedelta
 import random
+from utils.circuit_breaker import circuit_breaker
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -62,6 +64,7 @@ async def signup(data: SignupRequest):
 
 # ✅ SIGNIN
 @router.post("/signin", response_model=SuccessResponse[dict])
+@circuit_breaker(name="mongodb_auth", failure_threshold=10, recovery_timeout=60)
 async def signin(data: SigninRequest):
 
     user = await db.users.find_one({
@@ -134,9 +137,11 @@ async def logout(current_user_id: str = Depends(get_current_user)):
     return SuccessResponse(message="logged out")
 
 
+from fastapi import Request
+
 # ✅ FORGOT PASSWORD
 @router.post("/forgot-password", response_model=SuccessResponse[dict])
-async def forgot_password(data: ForgotPasswordRequest):
+async def forgot_password(data: ForgotPasswordRequest, request: Request):
 
     user = await db.users.find_one({"email": data.email})
 
@@ -157,8 +162,10 @@ async def forgot_password(data: ForgotPasswordRequest):
         upsert=True
     )
 
-    # Security: Log OTP instead of returning it
-    print(f"DEBUG: OTP for {data.email} is {otp}")
+    # Offload email sending to arq worker using shared pool
+    arq_pool = request.app.state.arq_pool
+    await arq_pool.enqueue_job('send_otp_email', data.email, otp)
+
     return SuccessResponse(message="If an account exists with this email, an OTP has been sent.")
 
 
@@ -174,6 +181,11 @@ async def reset_password(data: ResetPasswordRequest):
     # 🔥 OTP expiry check (5 min)
     if datetime.utcnow() - record["created_at"] > timedelta(minutes=5):
         raise HTTPException(status_code=400, detail="OTP expired")
+
+    # Get user to invalidate cache
+    user = await db.users.find_one({"email": data.email}, {"_id": 1})
+    if user:
+        await redis_client.delete(f"user_cache:{user['_id']}")
 
     await db.users.update_one(
         {"email": data.email},
@@ -209,5 +221,8 @@ async def update_profile(user_id: str, data: ProfileUpdateRequest, current_user_
 
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
+
+    # Invalidate cache
+    await redis_client.delete(f"user_cache:{user_id}")
 
     return SuccessResponse(message="profile updated")

@@ -1,11 +1,7 @@
 import time
 from fastapi import Request, HTTPException
-from redis.asyncio import Redis
+from redis_db import redis_client
 import os
-
-# Assuming Redis is available at REDIS_URL environment variable
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
-redis_client = Redis.from_url(REDIS_URL, decode_responses=True)
 
 class RateLimiter:
     def __init__(self, requests_limit: int, window_seconds: int):

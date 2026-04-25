@@ -5,6 +5,7 @@ from database.base import SuccessResponse
 from services import category_service
 from dependencies.roles import require_permission
 from db import db
+from redis_db import redis_client
 
 router = APIRouter(prefix="/admin/category", tags=["Admin Category"])
 
@@ -16,6 +17,10 @@ async def create_category(
     user=Depends(require_permission("create_category"))
 ):
     category_id = await category_service.create_category(data)
+
+    # Invalidate public category cache
+    async for key in redis_client.scan_iter("categories:*"):
+        await redis_client.delete(key)
 
     return SuccessResponse(
         message="Category created",
@@ -72,6 +77,10 @@ async def update_category(
 ):
     await category_service.update_category(category_id, data)
 
+    # Invalidate public category cache
+    async for key in redis_client.scan_iter("categories:*"):
+        await redis_client.delete(key)
+
     return SuccessResponse(message="Category updated")
 
 
@@ -85,6 +94,10 @@ async def delete_category(
         category_id,
         CategoryUpdate(is_active=False)
     )
+
+    # Invalidate public category cache
+    async for key in redis_client.scan_iter("categories:*"):
+        await redis_client.delete(key)
 
     return SuccessResponse(message="Category deactivated")
 
@@ -106,6 +119,10 @@ async def toggle_category_status(
         category_id,
         CategoryUpdate(is_active=new_status)
     )
+
+    # Invalidate public category cache
+    async for key in redis_client.scan_iter("categories:*"):
+        await redis_client.delete(key)
 
     return SuccessResponse(
         message="Status updated",
