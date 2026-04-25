@@ -138,12 +138,19 @@ async def startup_event():
     await db.categories.create_index("name")
 
     # Initialize ARQ pool
-    app.state.arq_pool = await create_pool(
-        RedisSettings(
-            host=os.getenv("REDIS_HOST", "localhost"),
-            port=int(os.getenv("REDIS_PORT", 6379))
+    try:
+        app.state.arq_pool = await create_pool(
+            RedisSettings(
+                host=os.getenv("REDIS_HOST", "localhost"),
+                port=int(os.getenv("REDIS_PORT", 6379))
+            )
         )
-    )
+        print("✅ Redis connected successfully")
+
+    except Exception as e:
+        print("⚠️ Redis not available. Continuing without it...")
+        print("Error:", e)
+        app.state.arq_pool = None
 
 @app.on_event("shutdown")
 async def shutdown_event():
