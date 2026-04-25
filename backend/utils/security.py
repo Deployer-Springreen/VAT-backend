@@ -59,6 +59,8 @@ def verify_access_token(token: str):
 
 
 from db import db
+from redis_db import redis_client
+from utils.json_helper import mongo_dumps, mongo_loads
 
 async def get_current_user(auth: HTTPAuthorizationCredentials = Depends(security)):
     payload = verify_access_token(auth.credentials)
@@ -67,10 +69,20 @@ async def get_current_user(auth: HTTPAuthorizationCredentials = Depends(security
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     user_id = payload.get("sub")
+    cache_key = f"user_cache:{user_id}"
 
+    # Try cache first
+    cached_user = await redis_client.get(cache_key)
+    if cached_user:
+        return mongo_loads(cached_user)
+
+    # DB Fallback
     user = await db.users.find_one({"_id": user_id})  # ✅ STRING ID
 
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
+
+    # Cache for 10 minutes
+    await redis_client.setex(cache_key, 600, mongo_dumps(user))
 
     return user

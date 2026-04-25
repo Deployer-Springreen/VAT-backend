@@ -11,7 +11,13 @@ from routes import (
 from admin_routes import (
     admin_auth,admin_product,admin_category,admin_roles,admin_create)
 from db import db
-from database.base import ErrorResponse
+from database.base import ErrorResponse, SuccessResponse
+from redis_db import redis_client
+import time
+import psutil
+from arq import create_pool
+from arq.connections import RedisSettings
+import os
 
 app = FastAPI(
     title="Auth Service API",
@@ -22,6 +28,33 @@ app = FastAPI(
 @app.get("/")
 async def root():
     return {"msg": "Auth service running 🚀"}
+
+
+@app.get("/health")
+async def health_check():
+    try:
+        # Check DB
+        await db.command("ping")
+        # Check Redis
+        await redis_client.ping()
+        return {"status": "healthy", "timestamp": time.time()}
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Unhealthy: {str(e)}")
+
+
+@app.get("/metrics")
+async def metrics():
+    # Basic metrics for monitoring
+    process = psutil.Process(os.getpid())
+    return {
+        "service": "auth-service",
+        "version": "1.0.0",
+        "uptime": time.time(),
+        "memory_usage_mb": process.memory_info().rss / (1024 * 1024),
+        "cpu_percent": psutil.cpu_percent(),
+        "active_threads": process.num_threads(),
+        "arq_pool_connected": hasattr(app.state, "arq_pool") and app.state.arq_pool is not None
+    }
 
 
 app.include_router(user_auth.router)
@@ -57,11 +90,12 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 
 @app.on_event("startup")
-async def create_indexes():
-
+async def startup_event():
     # USERS
     await db.users.create_index("email", unique=True, sparse=True)
     await db.users.create_index("phone", unique=True, sparse=True)
+    await db.users.create_index([("email", 1), ("password", 1)])
+    await db.users.create_index([("phone", 1), ("password", 1)])
 
     # CART
     await db.carts.create_index("items.product_id")
@@ -80,6 +114,7 @@ async def create_indexes():
     await db.products.create_index("category_id")
     await db.products.create_index("subcategory_id")
     await db.products.create_index("product_name")
+    await db.products.create_index([("product_is_active", 1), ("_id", 1)])
 
     # SUBCATEGORIES
     await db.subcategories.create_index("category_id")
@@ -101,3 +136,16 @@ async def create_indexes():
 
     await db.categories.create_index("is_active")
     await db.categories.create_index("name")
+
+    # Initialize ARQ pool
+    app.state.arq_pool = await create_pool(
+        RedisSettings(
+            host=os.getenv("REDIS_HOST", "localhost"),
+            port=int(os.getenv("REDIS_PORT", 6379))
+        )
+    )
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    if hasattr(app.state, "arq_pool") and app.state.arq_pool:
+        await app.state.arq_pool.close()
