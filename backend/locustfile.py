@@ -1,7 +1,9 @@
 from locust import task, constant
 from locust.contrib.fasthttp import FastHttpUser
 import random
+from gevent.lock import Semaphore
 
+login_lock = Semaphore()
 
 class AdminOptimizedUser(FastHttpUser):
     wait_time = constant(0)
@@ -10,29 +12,50 @@ class AdminOptimizedUser(FastHttpUser):
 
     def on_start(self):
         self.category_ids = []
+        self.auth_headers = {}
+        self.ensure_logged_in()
 
+    def ensure_logged_in(self):
         if not AdminOptimizedUser.token:
-            res = self.client.post(
-                "/admin/auth/login",
-                json={
-                    "email": "admin@test.com",
-                    "password": "admin123"
-                }
-            )
+            with login_lock:
+                # Double check inside lock
+                if not AdminOptimizedUser.token:
+                    with self.client.post(
+                        "/admin/auth/login",
+                        json={
+                            "email": "admin@test.com",
+                            "password": "admin123"
+                        },
+                        name="/admin/auth/login"
+                    ) as res:
+                        if res.status_code != 200:
+                            print(f"❌ LOGIN FAILED: {res.status_code} - {res.text}")
+                            return
 
+                        data = res.json()
+                        AdminOptimizedUser.token = (
+                            data.get("access_token") or data.get("data", {}).get("access_token")
+                        )
+
+        if AdminOptimizedUser.token:
+            self.auth_headers = {
+                "Authorization": f"Bearer {AdminOptimizedUser.token}",
+                "Content-Type": "application/json"
+            }
+
+    @task(1)
+    def login_performance_test(self):
+        """Dedicated task to monitor login performance independently"""
+        with self.client.post(
+            "/admin/auth/login",
+            json={
+                "email": "admin@test.com",
+                "password": "admin123"
+            },
+            name="/admin/auth/login"
+        ) as res:
             if res.status_code != 200:
-                print("❌ LOGIN FAILED:", res.text)
-                return
-
-            data = res.json()
-            AdminOptimizedUser.token = (
-                data.get("access_token") or data.get("data", {}).get("access_token")
-            )
-
-        self.auth_headers = {
-            "Authorization": f"Bearer {AdminOptimizedUser.token}",
-            "Content-Type": "application/json"
-        }
+                res.failure(f"Login failed: {res.text}")
 
     # ---------------- CATEGORY ---------------- #
 
