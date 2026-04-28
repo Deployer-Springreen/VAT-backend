@@ -88,5 +88,4 @@ async def get_current_user(auth: HTTPAuthorizationCredentials = Depends(security
 
     # Cache for 10 minutes
     await redis_client.setex(cache_key, 600, mongo_dumps(user))
-
     return user
