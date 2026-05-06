@@ -8,4 +8,6 @@ client = AsyncIOMotorClient(
     maxIdleTimeMS=60000,
     waitQueueTimeoutMS=5000
 )
+
+
 db = client["ecommerce"]
