@@ -12,12 +12,13 @@ router = APIRouter(prefix="/products", tags=["Public Products"])
 async def get_products(
     skip: int = 0,
     limit: int = 10,
-    category_id: Optional[str] = Query(None, description="Filter products by category ID")
+    category_id: Optional[str] = Query(None, description="Filter products by category ID"),
+    popular: Optional[bool] = Query(None, description="Filter only popular products")
 ):
     limit = min(limit, 100)
     # Fetch current version
     version = await redis_client.get("products_version") or "0"
-    cache_key = f"products:v{version}:skip={skip}:limit={limit}:cat={category_id}"
+    cache_key = f"products:v{version}:skip={skip}:limit={limit}:cat={category_id}:popular={popular}"
 
     # Try cache
     cached_products = await redis_client.get(cache_key)
@@ -31,6 +32,7 @@ async def get_products(
         "price": 1,
         "stock_quantity": 1,
         "product_is_active": 1,
+        "product_is_popular": 1,
         "images": 1,
         "description": 1,
         "variants": 1,
@@ -40,6 +42,8 @@ async def get_products(
     query = {"product_is_active": True}
     if category_id:
         query["category_id"] = category_id
+    if popular is not None:
+        query["product_is_popular"] = popular
 
     products = await db.products.find(
         query,
@@ -59,4 +63,4 @@ async def get_product(product_id: str):
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    return SuccessResponse(data=mongo_loads(mongo_dumps(product)))
+    return SuccessResponse(data=mongo_loads(mongo_dumps(product)))

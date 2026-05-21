@@ -89,6 +89,7 @@ async def get_all_products(
         "subcategory_id": 1,
         "price": 1,
         "product_is_active": 1,
+        "product_is_popular": 1,
         "variants": 1,
         "images": 1,
         "_id": 1
