@@ -85,6 +85,8 @@ class SafeRedis:
                 return await client.incr(key)
         except:
             return 1
+        return 1
+
 
     async def delete(self, *keys):
         try:

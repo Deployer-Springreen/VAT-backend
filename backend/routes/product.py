@@ -1,5 +1,5 @@
-from fastapi import APIRouter
-from typing import List
+from fastapi import APIRouter, Query, HTTPException
+from typing import List, Optional
 from db import db
 from redis_db import redis_client
 from database.base import SuccessResponse
@@ -9,11 +9,15 @@ router = APIRouter(prefix="/products", tags=["Public Products"])
 
 
 @router.get("", response_model=SuccessResponse[List[dict]])
-async def get_products(skip: int = 0, limit: int = 10):
+async def get_products(
+    skip: int = 0,
+    limit: int = 10,
+    category_id: Optional[str] = Query(None, description="Filter products by category ID")
+):
     limit = min(limit, 100)
     # Fetch current version
     version = await redis_client.get("products_version") or "0"
-    cache_key = f"products:v{version}:skip={skip}:limit={limit}"
+    cache_key = f"products:v{version}:skip={skip}:limit={limit}:cat={category_id}"
 
     # Try cache
     cached_products = await redis_client.get(cache_key)
@@ -27,10 +31,18 @@ async def get_products(skip: int = 0, limit: int = 10):
         "price": 1,
         "stock_quantity": 1,
         "product_is_active": 1,
+        "images": 1,
+        "description": 1,
+        "variants": 1,
         "_id": 1
     }
+
+    query = {"product_is_active": True}
+    if category_id:
+        query["category_id"] = category_id
+
     products = await db.products.find(
-        {"product_is_active": True},
+        query,
         projection
     ).skip(skip).limit(limit).to_list(limit)
 
@@ -38,3 +50,13 @@ async def get_products(skip: int = 0, limit: int = 10):
     await redis_client.setex(cache_key, 300, mongo_dumps(products))
 
     return SuccessResponse(data=products)
+
+
+@router.get("/{product_id}", response_model=SuccessResponse[dict])
+async def get_product(product_id: str):
+    product = await db.products.find_one({"_id": product_id, "product_is_active": True})
+
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    return SuccessResponse(data=mongo_loads(mongo_dumps(product)))

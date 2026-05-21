@@ -88,8 +88,9 @@ async def get_all_products(
         "category_id": 1,
         "subcategory_id": 1,
         "price": 1,
-        "stock_quantity": 1,
         "product_is_active": 1,
+        "variants": 1,
+        "images": 1,
         "_id": 1
     }
 

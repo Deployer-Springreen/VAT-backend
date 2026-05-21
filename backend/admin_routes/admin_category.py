@@ -39,11 +39,11 @@ async def get_all_categories(
 
     #  SEARCH SUPPORT
     if search:
-        query["name"] = {"$regex": search, "$options": "i"}
+        query["category_name"] = {"$regex": search, "$options": "i"}
 
     categories = await db.categories.find(
         query,
-        {"name": 1, "is_active": 1, "_id": 1}
+        {"category_name": 1, "is_active": 1, "_id": 1}
     ).skip(skip).limit(limit).to_list(limit)
 
     #  normalize _id
