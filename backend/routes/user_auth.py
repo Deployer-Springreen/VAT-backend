@@ -203,20 +203,41 @@ async def update_profile(user_id: str, data: ProfileUpdateRequest, current_user_
     if user_id != current_user_id:
         raise HTTPException(status_code=403, detail="Not authorized to update this profile")
 
-    if not all([data.name, data.phone, data.email, data.address]):
-        raise HTTPException(status_code=400, detail="All fields required")
+    # Basic validation for required core fields
+    if not all([data.phone, data.email]):
+        raise HTTPException(status_code=400, detail="Phone and Email are required")
+
+    # Prepare update document
+    update_data = {
+        "phone": data.phone,
+        "email": data.email,
+        "profile_completed": True
+    }
+
+    if data.first_name: update_data["first_name"] = data.first_name
+    if data.last_name: update_data["last_name"] = data.last_name
+    if data.display_name: update_data["display_name"] = data.display_name
+    
+    # Combined name for legacy support
+    full_name = data.name or f"{data.first_name or ''} {data.last_name or ''}".strip()
+    if full_name: update_data["name"] = full_name
+    
+    if data.address: update_data["address"] = data.address
+
+    # Password update logic
+    if data.new_password:
+        if not data.current_password:
+            raise HTTPException(status_code=400, detail="Current password required to set new password")
+        
+        user = await db.users.find_one({"_id": user_id}, {"password": 1})
+        if not user or not await verify_password(data.current_password, user["password"]):
+            raise HTTPException(status_code=401, detail="Incorrect current password")
+        
+        update_data["password"] = await hash_password(data.new_password)
 
     result = await db.users.update_one(
         {"_id": user_id},
-        {
-            "$set": {
-                "name": data.name,
-                "phone": data.phone,
-                "email": data.email,
-                "address": data.address,
-                "profile_completed": True
-            }
-        }
+        {"$set": update_data}
     )
 
     if result.matched_count == 0:

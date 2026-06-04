@@ -4,30 +4,32 @@ from typing import List, Optional
 from pydantic import Field
 from .base import AppBaseModel
 
-class BannerBase(AppBaseModel):
+class PromoCardBase(AppBaseModel):
     title: str
     subtitle: Optional[str] = None
-    button_text: Optional[str] = None
+    badge_text: str = "Weekend Discount"
+    badge_link: str = "#"
+    button_text: str = "Shop Now"
+    button_link: str = "#"
     image_url: str
-    link_url: Optional[str] = None
     order: int = 1
     status: str = "active" # "active" or "inactive"
-    section: str = "section1" # section1..section4 are storefront banner sections
 
-class BannerCreate(BannerBase):
+class PromoCardCreate(PromoCardBase):
     pass
 
-class BannerUpdate(AppBaseModel):
+class PromoCardUpdate(AppBaseModel):
     title: Optional[str] = None
     subtitle: Optional[str] = None
+    badge_text: Optional[str] = None
+    badge_link: Optional[str] = None
     button_text: Optional[str] = None
+    button_link: Optional[str] = None
     image_url: Optional[str] = None
-    link_url: Optional[str] = None
     order: Optional[int] = None
     status: Optional[str] = None
-    section: Optional[str] = None
 
-class BannerOut(BannerBase):
+class PromoCardOut(PromoCardBase):
     id: str = Field(alias="_id")
     created_at: datetime
     updated_at: datetime

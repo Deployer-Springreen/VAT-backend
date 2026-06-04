@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from db import db
+from dependencies.roles import get_permissions
 from redis_db import redis_client
-from utils.security import create_access_token, verify_password
+from utils.security import create_access_token, get_current_user, verify_password
 from pydantic import BaseModel
 
 class LoginRequest(BaseModel):
@@ -36,3 +37,13 @@ async def login(payload: LoginRequest):
     token = create_access_token({"sub": user["_id"]})
 
     return {"access_token": token}
+
+
+@router.get("/access")
+async def get_admin_access(user=Depends(get_current_user)):
+    roles = user.get("roles", [])
+    if not any(role in {"admin", "super_admin"} for role in roles):
+        raise HTTPException(status_code=403, detail="Permission denied")
+
+    permissions = await get_permissions(user)
+    return {"roles": roles, "permissions": sorted(permissions)}

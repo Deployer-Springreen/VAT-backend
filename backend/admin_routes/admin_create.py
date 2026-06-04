@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr
 from typing import List
 
 from db import db
+from dependencies.roles import require_permission
 from utils.security import hash_password
 
 router = APIRouter(prefix="/admin/users", tags=["Admin Users"])
@@ -13,7 +14,10 @@ class CreateAdminUser(BaseModel):
     roles: List[str] = ["admin"]   # default role
 
 @router.post("/create")
-async def create_admin_user(payload: CreateAdminUser):
+async def create_admin_user(
+    payload: CreateAdminUser,
+    user=Depends(require_permission("create_admin_user")),
+):
 
     # check if user exists
     existing = await db.users.find_one({"email": payload.email})

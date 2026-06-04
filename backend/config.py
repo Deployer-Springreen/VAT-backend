@@ -1,6 +1,8 @@
 from dotenv import load_dotenv
 import os
-load_dotenv()
+
+basedir = os.path.dirname(__file__)
+load_dotenv(os.path.join(basedir, ".env"))
 
 class Config:
     MONGO_URI = os.getenv("MONGO_URI")
@@ -9,3 +11,8 @@ class Config:
     ALGORITHM = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES = 60
     REFRESH_TOKEN_EXPIRE_DAYS = 7
+
+if not Config.MONGO_URI:
+    raise RuntimeError(
+        "MONGO_URI is not configured. Set it in backend/.env or in the environment."
+    )

@@ -19,3 +19,8 @@ backend/tests/test_order.py
 backend/tests/test_product.py
 backend/tests/test_unit_benchmark.py
 backend/tests/test_user.py
+.venv
+backend/static/uploads/banners/7d17a10ea05e44e5a6df6e0e078a3545_Scroll less. Slay more. Shop now..png
+backend/static/uploads/banners/9fb16331fdd74c05b815e3cf880ae0bf_50bbfb7993ad3ecbe55a2f404b6ede2c.jpg
+backend/static/uploads/promo-cards/4bd727edde8f4775a13d2d776cefa8fd_images.jpg
+backend/static/uploads/promo-cards/032a6cdd25054458838614e492b2dc81_images (1).jpg

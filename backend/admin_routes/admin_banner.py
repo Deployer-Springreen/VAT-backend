@@ -85,3 +85,51 @@ async def upload_banner_image(file: UploadFile = File(...), user=Depends(require
     # Return URL (relative to static mount)
     image_url = f"/static/uploads/banners/{filename}"
     return {"imageUrl": image_url}
+
+@router.post("/move-up/{banner_id}", response_model=SuccessResponse)
+async def move_banner_up(banner_id: str, user=Depends(require_permission("update_banner"))):
+    """Move a banner up in the display order (decrease order value)"""
+    banner = await db.banners.find_one({"_id": banner_id})
+    if not banner:
+        raise HTTPException(status_code=404, detail="Banner not found")
+    
+    current_order = banner.get("order", 1)
+    
+    # Find the banner with the next lower order
+    prev_banner = await db.banners.find_one(
+        {"order": {"$lt": current_order}},
+        sort=[("order", -1)]
+    )
+    
+    if prev_banner:
+        # Swap orders
+        prev_order = prev_banner.get("order", 1)
+        await db.banners.update_one({"_id": banner_id}, {"$set": {"order": prev_order, "updated_at": datetime.utcnow()}})
+        await db.banners.update_one({"_id": prev_banner["_id"]}, {"$set": {"order": current_order, "updated_at": datetime.utcnow()}})
+    
+    await redis_client.incr("banners_version")
+    return SuccessResponse(message="Banner moved up successfully")
+
+@router.post("/move-down/{banner_id}", response_model=SuccessResponse)
+async def move_banner_down(banner_id: str, user=Depends(require_permission("update_banner"))):
+    """Move a banner down in the display order (increase order value)"""
+    banner = await db.banners.find_one({"_id": banner_id})
+    if not banner:
+        raise HTTPException(status_code=404, detail="Banner not found")
+    
+    current_order = banner.get("order", 1)
+    
+    # Find the banner with the next higher order
+    next_banner = await db.banners.find_one(
+        {"order": {"$gt": current_order}},
+        sort=[("order", 1)]
+    )
+    
+    if next_banner:
+        # Swap orders
+        next_order = next_banner.get("order", 1)
+        await db.banners.update_one({"_id": banner_id}, {"$set": {"order": next_order, "updated_at": datetime.utcnow()}})
+        await db.banners.update_one({"_id": next_banner["_id"]}, {"$set": {"order": current_order, "updated_at": datetime.utcnow()}})
+    
+    await redis_client.incr("banners_version")
+    return SuccessResponse(message="Banner moved down successfully")

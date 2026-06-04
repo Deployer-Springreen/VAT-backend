@@ -5,8 +5,8 @@ from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 
 # Load env variables
-env_path = r"C:\Users\Admin\Vijay Angenya traders full\VAT-backend\backend\.env"
-load_dotenv(env_path)
+basedir = os.path.dirname(__file__)
+load_dotenv(os.path.join(basedir, ".env"))
 
 mongo_uri = os.getenv("MONGO_URI")
 print(f"Seeding database at: {mongo_uri}")

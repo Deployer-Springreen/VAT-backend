@@ -5,7 +5,8 @@ from dotenv import load_dotenv
 from datetime import datetime
 
 async def seed_content_controller():
-    load_dotenv('VAT-backend/backend/.env')
+    basedir = os.path.dirname(__file__)
+    load_dotenv(os.path.join(basedir, ".env"))
     uri = os.getenv('MONGO_URI')
     if not uri:
         print("MONGO_URI not found in .env")
@@ -52,11 +53,27 @@ async def seed_content_controller():
         {"section_name": "footer", "content_key": "head_links", "content_value": "Useful Links", "display_order": 5},
         {"section_name": "footer", "content_key": "copyright", "content_value": "Copyright 2026 ©Vijay Anjenya Traders. All rights reserved.", "display_order": 6},
         
+        # SERVICE CARDS (featured in footer area)
+        {"section_name": "services", "content_key": "best_prices", "content_value": {"title": "Best Prices & Offers", "desc": "We prepared special discounts you on grocery products."}, "display_order": 1},
+        {"section_name": "services", "content_key": "return_policy", "content_value": {"title": "100% Return Policy", "desc": "We prepared special discounts you on grocery products."}, "display_order": 2},
+        {"section_name": "services", "content_key": "support_247", "content_value": {"title": "Support 24/7", "desc": "We prepared special discounts you on grocery products."}, "display_order": 3},
+        {"section_name": "services", "content_key": "great_offer", "content_value": {"title": "Great Offer Daily Deal", "desc": "We prepared special discounts you on grocery products."}, "display_order": 4},
+
         # GENERAL HOME TEXT
         {"section_name": "general", "content_key": "hero_pre_title", "content_value": "Get up to 30% off on your first ₹150 purchase", "display_order": 1},
         {"section_name": "general", "content_key": "hero_title", "content_value": "Do not miss our amazing grocery deals", "display_order": 2},
         {"section_name": "general", "content_key": "hero_desc", "content_value": "We have prepared special discounts for you on grocery products. Don't miss these opportunities...", "display_order": 3},
         {"section_name": "general", "content_key": "hero_btn", "content_value": "Shop Now", "display_order": 4},
+        {"section_name": "general", "content_key": "hero_image", "content_value": "assets/images/banner/05.jpg", "display_order": 5},
+        # HOME SECTION TITLES
+        {"section_name": "home_sections", "content_key": "recently_added", "content_value": {"title": "Recently Added", "products": ["PRD000001", "PRD000002", "PRD000003"]}, "display_order": 1},
+        {"section_name": "home_sections", "content_key": "top_rated", "content_value": {"title": "Top Rated", "products": ["PRD000004", "PRD000005", "PRD000006"]}, "display_order": 2},
+        {"section_name": "home_sections", "content_key": "top_selling", "content_value": {"title": "Top Selling", "products": ["PRD000007", "PRD000008", "PRD000009"]}, "display_order": 3},
+        {"section_name": "home_sections", "content_key": "deals_of_day", "content_value": {"title": "Deals of the day", "products": ["PRD000010", "PRD000001", "PRD000002"]}, "display_order": 4},
+
+        # SECTION CARDS (below featured categories)
+        {"section_name": "section_cards", "content_key": "card_1", "content_value": {"title": "Fresh Organic Vegetables", "subtitle": "Direct from Farm", "image": "assets/images/banner/06.jpg", "link": "shop-grid-top-filter.html", "button_text": "Shop Now"}, "display_order": 1},
+        {"section_name": "section_cards", "content_key": "card_2", "content_value": {"title": "Weekend Special Offer", "subtitle": "Best Deals on Groceries", "image": "assets/images/banner/07.jpg", "link": "shop-grid-top-filter.html", "button_text": "Shop Now"}, "display_order": 2},
     ]
     
     # Clear existing content

@@ -9,8 +9,14 @@ from routes import (
     wishlist,
     product,
     category,
+    subcategory,
     banner,
+    promo_card,
     content_controller,
+    address,
+    payment,
+    purchase_intent,
+    order_fullfilement,
 )
 from admin_routes import (
     admin_auth,
@@ -19,11 +25,13 @@ from admin_routes import (
     admin_roles,
     admin_create,
     admin_banner,
+    admin_promo_card,
     admin_content_controller,
 )
 from db import db, verify_mongodb_connection
 from database.base import ErrorResponse, SuccessResponse
 from redis_db import redis_client
+from dependencies.roles import ensure_default_admin_roles
 from config import Config
 import time
 import psutil
@@ -107,6 +115,13 @@ async def lifespan(app: FastAPI):
     await db.banners.create_index("order")
     await db.banners.create_index("status")
 
+    # PROMO CARDS
+    await db.promo_cards.create_index("order")
+    await db.promo_cards.create_index("status")
+
+    # Backfill reserved roles for admin users created before RBAC was introduced.
+    await ensure_default_admin_roles()
+
     # Initialize ARQ pool
     try:
         redis_url = Config.REDIS_URL
@@ -135,20 +150,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://localhost:5500",
-        "http://localhost:5501",
-        "http://localhost:8080",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
-        "http://127.0.0.1:5500",
-        "http://127.0.0.1:5501",
-        "http://127.0.0.1:8080",
-        "null",
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -199,14 +202,21 @@ app.include_router(cart.router)
 app.include_router(wishlist.router)
 app.include_router(product.router)
 app.include_router(category.router)
+app.include_router(subcategory.router)
 app.include_router(banner.router)
+app.include_router(promo_card.router)
 app.include_router(content_controller.router)
+app.include_router(address.router)
+app.include_router(payment.router)
+app.include_router(purchase_intent.router)
+app.include_router(order_fullfilement.router)
 app.include_router(admin_auth.router)
 app.include_router(admin_product.router)
 app.include_router(admin_category.router)
 app.include_router(admin_roles.router)
 app.include_router(admin_create.router)
 app.include_router(admin_banner.router)
+app.include_router(admin_promo_card.router)
 app.include_router(admin_content_controller.router)
 
 

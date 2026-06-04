@@ -64,7 +64,12 @@ class ResetPasswordRequest(AppBaseModel):
 
 
 class ProfileUpdateRequest(AppBaseModel):
-    name: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    display_name: Optional[str] = None
+    name: Optional[str] = None
     phone: str
     email: EmailStr
-    address: str
+    address: Optional[str] = None
+    current_password: Optional[str] = None
+    new_password: Optional[str] = None

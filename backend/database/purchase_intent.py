@@ -170,6 +170,8 @@ class OrderStatusUpdate(AppBaseModel):
     - "PENDING"
     - "CONFIRMED"
     - "SHIPPED"
+    - "DISPATCHED"
+    - "OUT_FOR_DELIVERY"
     - "DELIVERED"
     - "CANCELLED"
 
@@ -190,7 +192,7 @@ class OrderStatusUpdate(AppBaseModel):
     @field_validator("status")
     @classmethod
     def valid_status(cls, v):
-        allowed = {"PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"}
+        allowed = {"PENDING", "CONFIRMED", "SHIPPED", "DISPATCHED", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED"}
         if v not in allowed:
             raise ValueError(f"status must be one of {allowed}")
         return v

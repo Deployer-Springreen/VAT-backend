@@ -4,6 +4,10 @@ import logging
 
 logger = logging.getLogger("auth-service")
 
+if not Config.MONGO_URI:
+    logger.critical("MONGO_URI missing. Ensure backend/.env or environment sets MONGO_URI.")
+    raise RuntimeError("MONGO_URI is required for MongoDB connection.")
+
 client = AsyncIOMotorClient(
     Config.MONGO_URI,
     minPoolSize=10,

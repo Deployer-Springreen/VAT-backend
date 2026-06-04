@@ -8,10 +8,16 @@ async def add_address(user_id: str, address: AddressEmbedded):
     if not address_data.get("address_id"):
         address_data["address_id"] = str(uuid.uuid4())
 
-    await db.users.update_one(
+    result = await db.users.update_one(
         {"_id": user_id},
         {"$push": {"addresses": address_data}}
     )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=500, detail="Failed to add address")
 
 async def get_addresses(user_id: str, skip: int = 0, limit: int = 10):
     limit = min(limit, 100)
@@ -34,6 +40,9 @@ async def update_address(user_id: str, address_id: str, address: AddressEmbedded
 
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Address not found")
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=500, detail="Failed to update address")
 
 async def delete_address(user_id: str, address_id: str):
     result = await db.users.update_one(
