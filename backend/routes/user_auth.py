@@ -165,7 +165,12 @@ async def forgot_password(data: ForgotPasswordRequest, request: Request):
 
     # Offload email sending to arq worker using shared pool
     arq_pool = request.app.state.arq_pool
-    await arq_pool.enqueue_job('send_otp_email', data.email, otp)
+    if arq_pool:
+        await arq_pool.enqueue_job('send_otp_email', data.email, otp)
+    else:
+        import logging
+        auth_logger = logging.getLogger("auth-service")
+        auth_logger.warning(f"Redis is unavailable! OTP {otp} for {data.email} could not be sent to background worker queue. Logged locally.")
 
     return SuccessResponse(message="If an account exists with this email, an OTP has been sent.")
 
