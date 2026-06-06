@@ -13,6 +13,8 @@ class Config:
     REFRESH_TOKEN_EXPIRE_DAYS = 7
     RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "rzp_test_dummykey123")
     RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "dummysecret456")
+    ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+
 
 if not Config.MONGO_URI:
     raise RuntimeError(

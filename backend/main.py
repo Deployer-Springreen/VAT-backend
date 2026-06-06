@@ -165,16 +165,21 @@ app = FastAPI(
 )
 
 # CORS: allow the frontend origin(s). For development include http://localhost:3000 and Live Server ports
+origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5500",
+    "http://localhost:5500",
+    "http://127.0.0.1:5501",
+    "http://localhost:5501",
+]
+if Config.ALLOWED_ORIGINS:
+    origins.extend(Config.ALLOWED_ORIGINS)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5500",
-        "http://localhost:5500",
-        "http://127.0.0.1:5501",
-        "http://localhost:5501",
-    ],
+    allow_origins=origins,
+    allow_origin_regex=r"https?://.*\.vercel\.app$|https?://vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
