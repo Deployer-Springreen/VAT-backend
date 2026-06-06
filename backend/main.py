@@ -5,9 +5,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+
 from routes import (
 
     user_auth,
@@ -218,8 +218,17 @@ async def metrics():
     }
 
 
-# Mount static files
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Dynamic static files serving to support both local and serverless /tmp fallback directories
+@app.get("/static/{file_path:path}")
+async def serve_static(file_path: str):
+    tmp_file = os.path.join("/tmp/static", file_path)
+    if os.path.exists(tmp_file) and os.path.isfile(tmp_file):
+        return FileResponse(tmp_file)
+    local_file = os.path.join("static", file_path)
+    if os.path.exists(local_file) and os.path.isfile(local_file):
+        return FileResponse(local_file)
+    raise HTTPException(status_code=404, detail="File not found")
+
 
 app.include_router(user_auth.router)
 app.include_router(cart.router)

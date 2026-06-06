@@ -16,7 +16,11 @@ router = APIRouter(prefix="/admin/promo-cards", tags=["Admin Promo Cards"])
 
 # Ensure uploads directory exists
 UPLOAD_DIR = "static/uploads/promo-cards"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+try:
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+except OSError:
+    UPLOAD_DIR = "/tmp/static/uploads/promo-cards"
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @router.get("/all", response_model=SuccessResponse)
 async def get_all_promo_cards(user=Depends(require_permission("view_content"))):

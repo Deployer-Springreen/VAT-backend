@@ -16,7 +16,11 @@ router = APIRouter(prefix="/admin/banners", tags=["Admin Banners"])
 
 # Ensure uploads directory exists
 UPLOAD_DIR = "static/uploads/banners"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+try:
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+except OSError:
+    UPLOAD_DIR = "/tmp/static/uploads/banners"
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @router.get("/all", response_model=SuccessResponse)
 async def get_all_banners(user=Depends(require_permission("view_banner"))):
