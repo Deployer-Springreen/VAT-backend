@@ -244,11 +244,48 @@ async def get_dashboard_analytics(user=Depends(get_current_user)):
     if not sessions_sparkline:
         sessions_sparkline = [{"value": 30}, {"value": 45}, {"value": 20}, {"value": 60}, {"value": 40}, {"value": 70}, {"value": 50}]
 
+    # Compute real DB stats and trends
+    PAID_STATUSES = ["CONFIRMED", "SHIPPED", "DISPATCHED", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED"]
+    customer_ids = await db.orders.distinct("user_id", {"status": {"$in": PAID_STATUSES}})
+    total_customers_db = len(customer_ids)
+    
+    total_products_db = await db.products.count_documents({})
+    total_orders_db = await db.orders.count_documents({"status": {"$in": PAID_REVENUE_STATUSES}})
+
+    # Calculate trends
+    this_month_customers = len(await db.orders.distinct("user_id", {"status": {"$in": PAID_STATUSES}, "created_at": {"$gte": this_month_start}}))
+    last_month_customers = len(await db.orders.distinct("user_id", {"status": {"$in": PAID_STATUSES}, "created_at": {"$gte": last_month_start, "$lt": this_month_start}}))
+    if last_month_customers > 0:
+        customer_trend = round(((this_month_customers - last_month_customers) / last_month_customers) * 100, 1)
+    else:
+        customer_trend = 100.0 if this_month_customers > 0 else 0.0
+
+    this_month_orders = await db.orders.count_documents({"status": {"$in": PAID_REVENUE_STATUSES}, "created_at": {"$gte": this_month_start}})
+    last_month_orders = await db.orders.count_documents({"status": {"$in": PAID_REVENUE_STATUSES}, "created_at": {"$gte": last_month_start, "$lt": this_month_start}})
+    if last_month_orders > 0:
+        order_trend = round(((this_month_orders - last_month_orders) / last_month_orders) * 100, 1)
+    else:
+        order_trend = 100.0 if this_month_orders > 0 else 0.0
+
+    # product trend
+    this_month_products = await db.products.count_documents({"created_at": {"$gte": this_month_start}})
+    last_month_products = await db.products.count_documents({"created_at": {"$gte": last_month_start, "$lt": this_month_start}})
+    if last_month_products > 0:
+        product_trend = round(((this_month_products - last_month_products) / last_month_products) * 100, 1)
+    else:
+        product_trend = 5.0
+
     return {
         "success": True,
         "data": {
             "total_visitors": total_visitors,
             "total_revenue": round(total_revenue, 2),
+            "total_customers": total_customers_db,
+            "total_products": total_products_db,
+            "total_orders": total_orders_db,
+            "order_trend": order_trend,
+            "customer_trend": customer_trend,
+            "product_trend": product_trend,
             "activity_insights": activity_insights,
             "page_performance": page_performance,
             "browser_audience": browser_audience,
