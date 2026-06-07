@@ -22,6 +22,16 @@ from redis_db import redis_client
 from datetime import datetime, timedelta
 import random
 from utils.circuit_breaker import circuit_breaker
+from pydantic import BaseModel
+
+
+class RefreshTokenRequest(BaseModel):
+    """
+    Accepts refresh_token in request body.
+    SECURITY: Never send tokens as URL query params — they appear in server
+    access logs, browser history, CDN logs, and HTTP Referrer headers.
+    """
+    refresh_token: str
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -102,7 +112,8 @@ async def signin(data: SigninRequest):
 
 #  REFRESH TOKEN
 @router.post("/refresh", response_model=SuccessResponse[dict])
-async def refresh(refresh_token: str):
+async def refresh(data: RefreshTokenRequest):
+    refresh_token = data.refresh_token
     payload = verify_token(refresh_token, "refresh")
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid refresh token")

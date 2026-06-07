@@ -59,7 +59,7 @@ async def calculate_summary(user_id: str):
     return result[0]
 
 
-#  BULK ADD TO CART (ATOMIC + NO DUPLICATES)
+#  BULK ADD TO CART (ATOMIC + NO DUPLICATES by product_id)
 async def bulk_add_items(user_id: str, product_ids: list):
     if not product_ids:
         raise HTTPException(status_code=400, detail="No products provided")
@@ -73,27 +73,38 @@ async def bulk_add_items(user_id: str, product_ids: list):
     if not products:
         raise HTTPException(status_code=404, detail="No valid products found")
 
-    #  prepare items
-    items = [
-        {
-            "product_id": str(p["_id"]),
+    # Ensure the cart document exists (upsert) before operating on items
+    await db.carts.update_one(
+        {"_id": user_id},
+        {"$setOnInsert": {"_id": user_id, "items": []}},
+        upsert=True
+    )
+
+    # For each valid product: increment quantity if already in cart,
+    # otherwise push a new item.  This avoids the $addToSet object-equality
+    # pitfall where items with the same product_id but different fields both
+    # get inserted.
+    for p in products:
+        product_id = str(p["_id"])
+        new_item = {
+            "product_id": product_id,
             "product_name": p.get("product_name"),
             "price": p.get("price", 0),
             "quantity": 1
         }
-        for p in products
-    ]
 
-    #  ATOMIC UPSERT (no find_one)
-    await db.carts.update_one(
-        {"_id": user_id},
-        {
-            "$addToSet": {
-                "items": {"$each": items}
-            }
-        },
-        upsert=True
-    )
+        # Try to increment quantity for an existing item first
+        result = await db.carts.update_one(
+            {"_id": user_id, "items.product_id": product_id},
+            {"$inc": {"items.$.quantity": 1}}
+        )
+
+        # If no existing item was found, push a new one
+        if result.matched_count == 0:
+            await db.carts.update_one(
+                {"_id": user_id},
+                {"$push": {"items": new_item}}
+            )
 
     return "items added to cart"
 

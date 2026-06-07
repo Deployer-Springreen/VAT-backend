@@ -179,7 +179,10 @@ if Config.ALLOWED_ORIGINS:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=r"https?://.*\.vercel\.app$|https?://vercel\.app$",
+    # Only allow VAT's own Vercel preview & production domains.
+    # Using '.*\.vercel\.app' would allow ANY Vercel app (including attacker-controlled)
+    # to make credentialed requests to this API — a serious CORS misconfiguration.
+    allow_origin_regex=r"https://vat-frontend[\w-]*\.vercel\.app$|https://vat-admin[\w-]*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
