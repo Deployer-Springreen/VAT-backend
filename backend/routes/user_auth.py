@@ -83,7 +83,7 @@ async def signin(data: SigninRequest):
             {"email": data.identifier},
             {"phone": data.identifier}
         ]
-    }, {"password": 1, "email": 1, "phone": 1, "_id": 1})
+    }, {"password": 1, "email": 1, "phone": 1, "_id": 1, "name": 1})
 
     # Security: Generic error message to prevent user enumeration
     if not user or not await verify_password(data.password, user["password"]):
@@ -105,7 +105,8 @@ async def signin(data: SigninRequest):
             "access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "bearer",
-            "user_id": user["_id"]
+            "user_id": user["_id"],
+            "name": user.get("name")
         }
     )
 
@@ -210,6 +211,18 @@ async def reset_password(data: ResetPasswordRequest):
     )
 
     return SuccessResponse(message="Password updated")
+
+
+#  GET PROFILE
+@router.get("/profile/me", response_model=SuccessResponse[dict])
+async def get_profile(current_user_id: str = Depends(get_current_user_id)):
+    user = await db.users.find_one({"_id": current_user_id}, {
+        "password": 0,
+        "created_at": 0
+    })
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return SuccessResponse(data=user)
 
 
 #  PROFILE UPDATE
