@@ -138,3 +138,84 @@ async def update_order_status(order_id: str, payload: dict, user=Depends(get_cur
         raise HTTPException(status_code=404, detail="Order not found")
         
     return {"success": True, "message": "Order status updated successfully"}
+
+
+@router.get("/notifications")
+async def get_recent_notifications(user=Depends(get_current_user)):
+    user_roles = user.get("roles", [])
+    if not any(role in {"admin", "super_admin"} for role in user_roles):
+        raise HTTPException(status_code=403, detail="Permission denied")
+        
+    notifications_list = []
+    
+    # 1. Fetch recent orders (limit 15)
+    recent_orders = await db.orders.find().sort("created_at", -1).to_list(length=15)
+    
+    # Fetch user details for these orders
+    uids = [o.get("user_id") for o in recent_orders if o.get("user_id")]
+    uids_norm = []
+    for uid in uids:
+        if isinstance(uid, dict):
+            uid = uid.get("_id")
+        if uid:
+            uids_norm.append(uid)
+            
+    users_map = {}
+    if uids_norm:
+        users = await db.users.find({"_id": {"$in": list(set(uids_norm))}}).to_list(length=len(uids_norm))
+        users_map = {u["_id"]: u for u in users}
+        
+    for order in recent_orders:
+        oid = order.get("_id")
+        created_at = order.get("created_at") or order.get("order_created_at") or datetime.utcnow()
+        uid = order.get("user_id")
+        if isinstance(uid, dict):
+            uid = uid.get("_id")
+        u_info = users_map.get(uid, {})
+        name = u_info.get("name") or u_info.get("email", "Guest").split("@")[0]
+        
+        # Add "New order placed" notification
+        notifications_list.append({
+            "id": f"order_{oid}",
+            "title": "New order placed",
+            "description": f"Order #{oid} placed by {name}",
+            "timestamp": created_at.isoformat() if isinstance(created_at, datetime) else str(created_at),
+            "unread": True,
+            "color": "bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400"
+        })
+        
+        # Add "Payment received" notification if paid/confirmed
+        status = order.get("status", "PENDING")
+        if status in ["CONFIRMED", "SHIPPED", "DISPATCHED", "OUT_FOR_DELIVERY", "DELIVERED"]:
+            total_amt = order.get("total_amount", 0.0)
+            notifications_list.append({
+                "id": f"payment_{oid}",
+                "title": "Payment received",
+                "description": f"₹{total_amt:,.2f} received from {name}",
+                "timestamp": created_at.isoformat() if isinstance(created_at, datetime) else str(created_at),
+                "unread": False,
+                "color": "bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400"
+            })
+            
+    # 2. Fetch recent user registrations (limit 15)
+    recent_users = await db.users.find().sort("created_at", -1).to_list(length=15)
+    for ru in recent_users:
+        ru_id = ru.get("_id")
+        created_at = ru.get("created_at") or ru.get("user_created_at") or datetime.utcnow()
+        name = ru.get("name") or ru.get("email", "Guest").split("@")[0]
+        email = ru.get("email", "")
+        
+        notifications_list.append({
+            "id": f"user_{ru_id}",
+            "title": "New user registered",
+            "description": f"{name} ({email}) joined your platform",
+            "timestamp": created_at.isoformat() if isinstance(created_at, datetime) else str(created_at),
+            "unread": True,
+            "color": "bg-violet-100 text-violet-600 dark:bg-violet-500/20 dark:text-violet-400"
+        })
+        
+    # Sort all notifications by timestamp descending
+    notifications_list.sort(key=lambda x: x["timestamp"], reverse=True)
+    
+    # Return top 20 notifications
+    return {"success": True, "data": notifications_list[:20]}
