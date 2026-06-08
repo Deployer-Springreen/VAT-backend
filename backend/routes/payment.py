@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from database.payment import PaymentCreate, PaymentOut
 from database.base import SuccessResponse
 from services import order_service
@@ -103,3 +103,81 @@ async def verify_payment(
 async def get_payment(payment_id: str):
     payment = await order_service.get_payment(payment_id)
     return SuccessResponse(data=payment)
+
+
+@router.post("/webhook")
+async def razorpay_webhook(request: Request):
+    # Get raw body for signature verification
+    body = await request.body()
+    signature = request.headers.get("X-Razorpay-Signature")
+    
+    # Verify signature if webhook secret is configured
+    webhook_secret = Config.RAZORPAY_WEBHOOK_SECRET
+    if webhook_secret and signature:
+        generated_signature = hmac.new(
+            webhook_secret.encode('utf-8'),
+            body,
+            hashlib.sha256
+        ).hexdigest()
+        if not hmac.compare_digest(generated_signature, signature):
+            raise HTTPException(status_code=400, detail="Invalid webhook signature")
+            
+    # Parse JSON payload
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+        
+    event = payload.get("event")
+    
+    # Handle payment capture or order paid events
+    if event in ("order.paid", "payment.captured"):
+        event_payload = payload.get("payload", {})
+        
+        # Try to find order_id from payment or order entity notes
+        order_entity = event_payload.get("order", {}).get("entity", {})
+        payment_entity = event_payload.get("payment", {}).get("entity", {})
+        
+        # Check notes or receipt
+        order_id = (
+            payment_entity.get("notes", {}).get("order_id") or
+            order_entity.get("notes", {}).get("order_id") or
+            order_entity.get("receipt")
+        )
+        
+        user_id = (
+            payment_entity.get("notes", {}).get("user_id") or
+            order_entity.get("notes", {}).get("user_id")
+        )
+        
+        transaction_id = payment_entity.get("id") or f"webhook_{event}"
+        
+        if order_id:
+            # Find the order
+            order = await db.orders.find_one({"_id": order_id})
+            if order:
+                if order.get("status") == "PENDING":
+                    # Update status
+                    await db.orders.update_one(
+                        {"_id": order_id},
+                        {"$set": {"status": "CONFIRMED"}}
+                    )
+                    
+                    # Create payment record
+                    payment_data = PaymentCreate(
+                        order_id=order_id,
+                        amount_paid=order["total_amount"],
+                        payment_method="Razorpay (Webhook)",
+                        transaction_id=transaction_id
+                    )
+                    await order_service.create_payment(payment_data)
+                    
+                    # Clear cart
+                    u_id = user_id or order.get("user_id")
+                    if u_id:
+                        await db.carts.update_one(
+                            {"_id": u_id},
+                            {"$set": {"items": [], "coupon": None}}
+                        )
+                        
+    return {"status": "ok"}
