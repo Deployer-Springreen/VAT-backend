@@ -239,7 +239,8 @@ async def serve_static(file_path: str):
     
     # Fallback to MongoDB fs_files
     db_path = f"static/{file_path}".replace("\\", "/")
-    file_doc = await db.fs_files.find_one({"_id": db_path})
+    # Try both with and without leading slash
+    file_doc = await db.fs_files.find_one({"$or": [{"_id": db_path}, {"_id": f"/{db_path}"}]})
     if file_doc:
         return Response(content=file_doc["data"], media_type=file_doc["content_type"])
         
